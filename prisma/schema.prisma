@@ -15,6 +15,7 @@ model User {
   email String  @unique
   name  String
   image String?
+  password String // Хэш пароля
   boards Board[] @relation("UserBoards")
   sentMessages Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
