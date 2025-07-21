@@ -1,0 +1,67 @@
+version: '3.8'
+services:
+  nextjs:
+    build:
+      context: .
+      dockerfile: docker/nextjs/Dockerfile
+    volumes:
+      - ./app:/app
+      - ./.env:/app/.env
+    ports:
+      - "3000:3000"
+    stdin_open: true
+    tty: true
+
+  prisma:
+    build:
+      context: ./prisma
+      dockerfile: ../docker/prisma/Dockerfile
+    env_file:
+      - ./.env
+    volumes:
+      - ./prisma:/prisma
+    depends_on:
+      - db
+
+  db:
+    build:
+      context: ./docker/postgresql
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - ./.env
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: taskforge
+    volumes:
+      - ./data:/var/lib/postgresql/data
+
+  redis:
+    build:
+      context: ./docker/redis
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - ./.env
+    volumes:
+      - redis_data:/data
+
+  socket:
+    build:
+      context: ./socket
+      dockerfile: ../docker/socket/Dockerfile
+    env_file:
+      - ./.env
+    ports:
+      - "4000:4000"
+    depends_on:
+      - redis
+    volumes:
+      - ./socket:/socket
+
+volumes:
+  db_data:
+  redis_data: 

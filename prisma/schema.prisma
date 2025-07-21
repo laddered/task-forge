@@ -1,0 +1,57 @@
+// Prisma schema for Task Forge
+// Data models: User, Board, Column, Task, Message
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id    String  @id @default(uuid())
+  email String  @unique
+  name  String
+  image String?
+  boards Board[] @relation("UserBoards")
+  sentMessages Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+}
+
+model Board {
+  id      String   @id @default(uuid())
+  name    String
+  ownerId String
+  owner   User     @relation("UserBoards", fields: [ownerId], references: [id])
+  columns Column[]
+}
+
+model Column {
+  id      String  @id @default(uuid())
+  title   String
+  boardId String
+  board   Board   @relation(fields: [boardId], references: [id])
+  order   Int
+  tasks   Task[]
+}
+
+model Task {
+  id        String  @id @default(uuid())
+  title     String
+  description String?
+  columnId  String
+  column    Column  @relation(fields: [columnId], references: [id])
+  order     Int
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  text       String
+  timestamp  DateTime @default(now())
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+} 

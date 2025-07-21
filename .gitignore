@@ -1,0 +1,32 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+logs
+*.log
+
+# Build output
+/dist
+/build
+/.next
+out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Misc
+coverage/
+*.tgz 
+
+# Data (ignore everything except .gitinit)
+data/*
+!data/.gitinit 
