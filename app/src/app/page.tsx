@@ -19,7 +19,7 @@ export default async function Home() {
     return <ClientHome email={user.email} />;
   }
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-8">
+    <div className="flex flex-col items-center justify-center p-8">
       <h1 className="text-3xl font-bold mb-8">Task Forge</h1>
       <p className="mb-4 text-lg">Добро пожаловать! Войдите или зарегистрируйтесь, чтобы начать работать с задачами.</p>
       <div className="flex gap-4">

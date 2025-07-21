@@ -12,17 +12,6 @@ services:
     stdin_open: true
     tty: true
 
-  prisma:
-    build:
-      context: ./prisma
-      dockerfile: ../docker/prisma/Dockerfile
-    env_file:
-      - ./.env
-    volumes:
-      - ./prisma:/prisma
-    depends_on:
-      - db
-
   db:
     build:
       context: ./docker/postgresql
