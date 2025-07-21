@@ -2,8 +2,8 @@ version: '3.8'
 services:
   nextjs:
     build:
-      context: .
-      dockerfile: docker/nextjs/Dockerfile
+      context: ./app
+      dockerfile: ../docker/nextjs/Dockerfile
     volumes:
       - ./app:/app
       - ./.env:/app/.env
