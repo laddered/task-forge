@@ -2,6 +2,22 @@
 import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { Dialog } from '@headlessui/react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Тип задачи для типизации
 interface TaskType {
@@ -12,12 +28,17 @@ interface TaskType {
   columnId: string; // Добавляем columnId для связи с колонкой
 }
 
-// Task-компонент
-function Task({ task, onRename, onDelete, loading }: {
+// Task-компонент с dnd-kit
+function SortableTask({ task, onRename, onDelete, loading, listeners, attributes, isDragging, setNodeRef, style }: {
   task: { id: string; title: string; description: string; order: number };
   onRename: (id: string, title: string) => void;
   onDelete: (id: string) => void;
   loading?: boolean;
+  listeners?: any;
+  attributes?: any;
+  isDragging?: boolean;
+  setNodeRef?: (node: HTMLElement | null) => void;
+  style?: React.CSSProperties;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(task.title);
@@ -27,7 +48,13 @@ function Task({ task, onRename, onDelete, loading }: {
     setIsEditing(false);
   }
   return (
-    <div className="bg-white rounded shadow p-2 mb-2 flex flex-col h-28 min-h-28 max-h-28">
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`bg-white rounded shadow p-2 mb-2 flex flex-col h-28 min-h-28 max-h-28 transition-all duration-150 ${isDragging ? 'opacity-50 border-2 border-blue-500' : ''}`}
+    >
       <div className="flex items-center mb-1">
         <button className="mr-1" onClick={() => setIsEditing(true)} title="Переименовать" disabled={loading}>✏️</button>
         {isEditing ? (
@@ -50,8 +77,44 @@ function Task({ task, onRename, onDelete, loading }: {
   );
 }
 
+// DND-обертка для таска
+function DraggableTask({ task, onRename, onDelete, loading }: {
+  task: TaskType;
+  onRename: (id: string, title: string) => void;
+  onDelete: (id: string) => void;
+  loading?: boolean;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    // position: isDragging ? 'relative' : undefined, // убрано для устранения ошибки типов
+  };
+  return (
+    <SortableTask
+      task={task}
+      onRename={onRename}
+      onDelete={onDelete}
+      loading={loading}
+      listeners={listeners}
+      attributes={attributes}
+      setNodeRef={setNodeRef}
+      isDragging={isDragging}
+      style={style}
+    />
+  );
+}
+
 // Компонент одной колонки (UI + задачи)
-function Column({ column, tasks, onAddTask, onRenameTask, onEditDesc, onDeleteTask, loading }: {
+function Column({ column, tasks, onAddTask, onRenameTask, onEditDesc, onDeleteTask, loading, activeTaskId }: {
   column: { id: string; title: string; order: number };
   tasks: TaskType[];
   onAddTask: (columnId: string) => void;
@@ -59,6 +122,7 @@ function Column({ column, tasks, onAddTask, onRenameTask, onEditDesc, onDeleteTa
   onEditDesc: (id: string, description: string) => void;
   onDeleteTask: (id: string) => Promise<void>;
   loading?: boolean;
+  activeTaskId?: string | null;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(column.title);
@@ -67,6 +131,13 @@ function Column({ column, tasks, onAddTask, onRenameTask, onEditDesc, onDeleteTa
 
   // Сбросить локальное состояние названия при изменении пропса
   useEffect(() => { setTitle(column.title); }, [column.title]);
+
+  // Сбросить taskToDelete, если таск уже удалён
+  useEffect(() => {
+    if (taskToDelete && !tasks.some(t => t.id === taskToDelete)) {
+      setTaskToDelete(null);
+    }
+  }, [taskToDelete, tasks]);
 
   // Сохранить новое название
   function handleRename() {
@@ -107,15 +178,20 @@ function Column({ column, tasks, onAddTask, onRenameTask, onEditDesc, onDeleteTa
       {/* Кнопка "Добавить таск" всегда над списком */}
       <div className="flex flex-col mb-2">
         <button className="bg-blue-500 text-white hover:bg-blue-600 px-2 py-1 rounded mb-2 transition-colors" onClick={() => onAddTask(column.id)} disabled={loading}>+ Добавить таск</button>
-        {tasks.sort((a: TaskType, b: TaskType) => b.order - a.order).map(task => (
-          <Task
-            key={task.id}
-            task={task}
-            onRename={onRenameTask}
-            onDelete={() => setTaskToDelete(task.id)}
-            loading={loading}
-          />
-        ))}
+        <SortableContext
+          items={tasks.map(t => t.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {tasks.sort((a: TaskType, b: TaskType) => b.order - a.order).map(task => (
+            <DraggableTask
+              key={task.id}
+              task={task}
+              onRename={onRenameTask}
+              onDelete={() => setTaskToDelete(task.id)}
+              loading={loading}
+            />
+          ))}
+        </SortableContext>
       </div>
       {/* Модалка подтверждения удаления таска */}
       <Dialog open={!!taskToDelete} onClose={() => setTaskToDelete(null)} className="fixed z-50 inset-0 flex items-center justify-center">
@@ -124,7 +200,18 @@ function Column({ column, tasks, onAddTask, onRenameTask, onEditDesc, onDeleteTa
           <Dialog.Description className="mb-4 text-gray-200">Вы уверены, что хотите удалить эту задачу? Это действие необратимо.</Dialog.Description>
           <div className="flex gap-2 justify-end">
             <button className="px-4 py-2 bg-gray-500 hover:bg-gray-400 text-white rounded" onClick={() => setTaskToDelete(null)} disabled={loading}>Отмена</button>
-            <button className="px-4 py-2 bg-red-600 text-white rounded disabled:opacity-50" onClick={async () => { if (taskToDelete) { await onDeleteTask(taskToDelete); setTaskToDelete(null); } }} disabled={loading}>{loading ? "Удаление..." : "Удалить"}</button>
+            <button
+              className="px-4 py-2 bg-red-600 text-white rounded disabled:opacity-50"
+              onClick={async () => {
+                if (taskToDelete) {
+                  await onDeleteTask(taskToDelete);
+                  setTaskToDelete(null);
+                }
+              }}
+              disabled={loading}
+            >
+              {loading ? "Удаление..." : "Удалить"}
+            </button>
           </div>
         </Dialog.Panel>
       </Dialog>
@@ -144,6 +231,12 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
   const [loading, setLoading] = useState(false);
   // id колонки, которую хотим удалить (для модалки)
   const [columnToDelete, setColumnToDelete] = useState<string | null>(null);
+
+  // DND state
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
 
   // Загрузка колонок и задач с сервера при смене доски
   useEffect(() => {
@@ -222,10 +315,14 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
   async function handleAddTask(columnId: string) {
     setLoading(true);
     const newOrder = tasks.filter(t => t.columnId === columnId).length + 1;
+    // Получаем название колонки
+    const column = columns.find(c => c.id === columnId);
+    const columnTitle = column ? column.title : '';
+    const taskTitle = `Новый ${columnTitle} ${newOrder}`;
     const res = await fetch('/api/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ columnId, order: newOrder, title: `Новый таск ${newOrder}` })
+      body: JSON.stringify({ columnId, order: newOrder, title: taskTitle })
     });
     if (res.ok) {
       // Перезагрузим все задачи для этой колонки
@@ -286,50 +383,130 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
     setLoading(false);
   }
 
+  // Получить таск по id
+  const getTaskById = (id: string) => tasks.find(t => t.id === id);
+
+  // DND обработчик
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    setActiveTaskId(null);
+    if (!over || active.id === over.id) return;
+    // Найти таск и колонку
+    const activeTask = getTaskById(active.id as string);
+    const overTask = getTaskById(over.id as string);
+    if (!activeTask || !overTask) return;
+    // Если таск перемещен в другую колонку или внутри колонки
+    const fromColumnId = activeTask.columnId;
+    const toColumnId = overTask.columnId;
+    // Получить таски в целевой колонке
+    const targetTasks = tasks.filter(t => t.columnId === toColumnId).sort((a, b) => b.order - a.order);
+    // Найти индекс вставки
+    const overIndex = targetTasks.findIndex(t => t.id === overTask.id);
+    // Переместить таск в массиве
+    let newTasks: TaskType[] = [];
+    if (fromColumnId === toColumnId) {
+      // Внутри одной колонки
+      const oldTasks = targetTasks;
+      const activeIndex = oldTasks.findIndex(t => t.id === activeTask.id);
+      newTasks = arrayMove(oldTasks, activeIndex, overIndex);
+      // Обновить order
+      newTasks = newTasks.map((t, idx) => ({ ...t, order: newTasks.length - idx }));
+      setTasks(ts => [
+        ...ts.filter(t => t.columnId !== toColumnId),
+        ...newTasks
+      ]);
+    } else {
+      // Между колонками
+      const fromTasks = tasks.filter(t => t.columnId === fromColumnId).sort((a, b) => b.order - a.order).filter(t => t.id !== activeTask.id);
+      newTasks = [
+        ...targetTasks.slice(0, overIndex),
+        { ...activeTask, columnId: toColumnId },
+        ...targetTasks.slice(overIndex)
+      ].map((t, idx) => ({ ...t, order: targetTasks.length + 1 - idx }));
+      setTasks(ts => [
+        ...ts.filter(t => t.columnId !== fromColumnId && t.columnId !== toColumnId),
+        ...fromTasks.map((t, idx) => ({ ...t, order: fromTasks.length - idx })),
+        ...newTasks
+      ]);
+    }
+    // Сохраняем изменения на сервере
+    // (отправляем PATCH для всех затронутых тасков)
+    setTimeout(() => {
+      newTasks.forEach(async t => {
+        await fetch('/api/tasks', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: t.id, order: t.order, columnId: t.columnId })
+        });
+      });
+    }, 0);
+  }
+
   return (
-    <section className="flex-1 p-8 overflow-x-auto">
-      <h2 className="text-xl font-bold mb-4">{board.name}</h2>
-      {/* Форма создания новой колонки */}
-      <div className="flex items-end mb-4">
-        <input
-          className="border rounded px-2 py-1 mr-2"
-          placeholder="Новая колонка"
-          value={newColTitle}
-          onChange={e => setNewColTitle(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') handleAddColumn(); }}
-          disabled={loading}
-        />
-        <button className="bg-blue-500 text-white px-3 py-1 rounded" onClick={handleAddColumn} disabled={loading}>
-          + Добавить колонку
-        </button>
-      </div>
-      {/* Список колонок */}
-      <div className="flex">
-        {columns.map(col => (
-          <Column
-            key={col.id}
-            column={col}
-            tasks={tasks.filter(t => t.columnId === col.id)}
-            onAddTask={handleAddTask}
-            onRenameTask={handleRenameTask}
-            onEditDesc={handleEditDesc}
-            onDeleteTask={handleDeleteTask}
-            loading={loading}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={e => setActiveTaskId(e.active.id as string)}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveTaskId(null)}
+    >
+      <section className="flex-1 p-8 overflow-x-auto">
+        <h2 className="text-xl font-bold mb-4">{board.name}</h2>
+        {/* Форма создания новой колонки */}
+        <div className="flex items-end mb-4">
+          <input
+            className="border rounded px-2 py-1 mr-2"
+            placeholder="Новая колонка"
+            value={newColTitle}
+            onChange={e => setNewColTitle(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleAddColumn(); }}
+            disabled={loading}
           />
-        ))}
-      </div>
-      {/* Модалка подтверждения удаления колонки */}
-      <Dialog open={!!columnToDelete} onClose={() => setColumnToDelete(null)} className="fixed z-50 inset-0 flex items-center justify-center">
-        <Dialog.Panel className="bg-gray-800 p-6 rounded shadow-xl max-w-sm w-full">
-          <Dialog.Title className="text-lg font-bold mb-2">Удалить колонку?</Dialog.Title>
-          <Dialog.Description className="mb-4 text-gray-200">Вы уверены, что хотите удалить эту колонку? Это действие необратимо.</Dialog.Description>
-          <div className="flex gap-2 justify-end">
-            <button className="px-4 py-2 bg-gray-500 hover:bg-gray-400 text-white rounded" onClick={() => setColumnToDelete(null)} disabled={loading}>Отмена</button>
-            <button className="px-4 py-2 bg-red-600 text-white rounded disabled:opacity-50" onClick={() => columnToDelete && handleDeleteColumn(columnToDelete)} disabled={loading}>{loading ? "Удаление..." : "Удалить"}</button>
-          </div>
-        </Dialog.Panel>
-      </Dialog>
-    </section>
+          <button className="bg-blue-500 text-white px-3 py-1 rounded" onClick={handleAddColumn} disabled={loading}>
+            + Добавить колонку
+          </button>
+        </div>
+        {/* Список колонок */}
+        <div className="flex">
+          {columns.map(col => (
+            <Column
+              key={col.id}
+              column={col}
+              tasks={tasks.filter(t => t.columnId === col.id)}
+              onAddTask={handleAddTask}
+              onRenameTask={handleRenameTask}
+              onEditDesc={handleEditDesc}
+              onDeleteTask={handleDeleteTask}
+              loading={loading}
+              activeTaskId={activeTaskId}
+            />
+          ))}
+        </div>
+        {/* DragOverlay для таска */}
+        <DragOverlay>
+          {activeTaskId ? (
+            <SortableTask
+              task={getTaskById(activeTaskId)!}
+              onRename={() => {}}
+              onDelete={() => {}}
+              loading={true}
+              isDragging={true}
+            />
+          ) : null}
+        </DragOverlay>
+        {/* Модалка подтверждения удаления колонки */}
+        <Dialog open={!!columnToDelete} onClose={() => setColumnToDelete(null)} className="fixed z-50 inset-0 flex items-center justify-center">
+          <Dialog.Panel className="bg-gray-800 p-6 rounded shadow-xl max-w-sm w-full">
+            <Dialog.Title className="text-lg font-bold mb-2">Удалить колонку?</Dialog.Title>
+            <Dialog.Description className="mb-4 text-gray-200">Вы уверены, что хотите удалить эту колонку? Это действие необратимо.</Dialog.Description>
+            <div className="flex gap-2 justify-end">
+              <button className="px-4 py-2 bg-gray-500 hover:bg-gray-400 text-white rounded" onClick={() => setColumnToDelete(null)} disabled={loading}>Отмена</button>
+              <button className="px-4 py-2 bg-red-600 text-white rounded disabled:opacity-50" onClick={() => columnToDelete && handleDeleteColumn(columnToDelete)} disabled={loading}>{loading ? "Удаление..." : "Удалить"}</button>
+            </div>
+          </Dialog.Panel>
+        </Dialog>
+      </section>
+    </DndContext>
   );
 }
 
