@@ -9,6 +9,7 @@ interface TaskType {
   title: string;
   description: string;
   order: number;
+  columnId: string; // Добавляем columnId для связи с колонкой
 }
 
 // Task-компонент
@@ -50,96 +51,19 @@ function Task({ task, onRename, onDelete, loading }: {
 }
 
 // Компонент одной колонки (UI + задачи)
-function Column({ column, onRename, onDelete, loading }: {
+function Column({ column, tasks, onAddTask, onRenameTask, onEditDesc, onDeleteTask, loading }: {
   column: { id: string; title: string; order: number };
-  onRename: (id: string, title: string) => void;
-  onDelete: (id: string) => void;
+  tasks: TaskType[];
+  onAddTask: (columnId: string) => void;
+  onRenameTask: (id: string, title: string) => void;
+  onEditDesc: (id: string, description: string) => void;
+  onDeleteTask: (id: string) => Promise<void>;
   loading?: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(column.title);
-  const [tasks, setTasks] = useState<TaskType[]>([]);
-  const [loadingTasks, setLoadingTasks] = useState(false);
   // Для модалки удаления таска
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
-
-  // Загрузка задач при монтировании/смене колонки
-  useEffect(() => {
-    let ignore = false;
-    async function fetchTasks() {
-      setLoadingTasks(true);
-      const res = await fetch(`/api/tasks?columnId=${column.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (!ignore) setTasks(data.tasks);
-      }
-      setLoadingTasks(false);
-    }
-    fetchTasks();
-    return () => { ignore = true; };
-  }, [column.id]);
-
-  // Добавить таск
-  async function handleAddTask() {
-    setLoadingTasks(true);
-    const newOrder = tasks.length + 1;
-    const res = await fetch('/api/tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ columnId: column.id, order: newOrder, title: `Новый таск ${newOrder}` })
-    });
-    if (res.ok) {
-      const data = await fetch(`/api/tasks?columnId=${column.id}`);
-      if (data.ok) {
-        const json = await data.json();
-        setTasks(json.tasks.sort((a: TaskType, b: TaskType) => b.order - a.order));
-      }
-    }
-    setLoadingTasks(false);
-  }
-  // Переименовать таск
-  async function handleRenameTask(id: string, title: string) {
-    setLoadingTasks(true);
-    const res = await fetch('/api/tasks', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, title })
-    });
-    if (res.ok) {
-      setTasks(ts => ts.map(t => t.id === id ? { ...t, title } : t));
-    }
-    setLoadingTasks(false);
-  }
-  // Изменить описание таска
-  async function handleEditDesc(id: string, description: string) {
-    setLoadingTasks(true);
-    const res = await fetch('/api/tasks', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, description })
-    });
-    if (res.ok) {
-      setTasks(ts => ts.map(t => t.id === id ? { ...t, description } : t));
-    }
-    setLoadingTasks(false);
-  }
-  // Удалить таск (после подтверждения)
-  async function handleDeleteTask(id: string) {
-    setLoadingTasks(true);
-    const res = await fetch(`/api/tasks?id=${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      // После удаления пересортируем order
-      const data = await fetch(`/api/tasks?columnId=${column.id}`);
-      if (data.ok) {
-        const json = await data.json();
-        setTasks(json.tasks);
-      } else {
-        setTasks(ts => ts.filter(t => t.id !== id));
-      }
-    }
-    setLoadingTasks(false);
-    setTaskToDelete(null);
-  }
 
   // Сбросить локальное состояние названия при изменении пропса
   useEffect(() => { setTitle(column.title); }, [column.title]);
@@ -147,7 +71,8 @@ function Column({ column, onRename, onDelete, loading }: {
   // Сохранить новое название
   function handleRename() {
     if (title.trim() && title !== column.title) {
-      onRename(column.id, title);
+      // Переименование колонки делается через пропсы (BoardView)
+      // onRename(column.id, title); // убрано, теперь только для задач
     }
     setIsEditing(false);
   }
@@ -174,21 +99,21 @@ function Column({ column, onRename, onDelete, loading }: {
           <span className="font-semibold text-gray-800 flex-1">{column.title}</span>
         )}
         {/* Кнопка-крестик для удаления */}
-        <button className="ml-auto text-red-500" onClick={() => onDelete(column.id)} title="Удалить" disabled={loading}>
+        {/* onDelete теперь передается из BoardView */}
+        <button className="ml-auto text-red-500" onClick={() => onDeleteTask(column.id)} title="Удалить" disabled={loading}>
           ❌
         </button>
       </div>
       {/* Кнопка "Добавить таск" всегда над списком */}
       <div className="flex flex-col mb-2">
-        <button className="bg-blue-500 text-white hover:bg-blue-600 px-2 py-1 rounded mb-2 transition-colors" onClick={handleAddTask} disabled={loadingTasks}>+ Добавить таск</button>
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        <button className="bg-blue-500 text-white hover:bg-blue-600 px-2 py-1 rounded mb-2 transition-colors" onClick={() => onAddTask(column.id)} disabled={loading}>+ Добавить таск</button>
         {tasks.sort((a: TaskType, b: TaskType) => b.order - a.order).map(task => (
           <Task
             key={task.id}
             task={task}
-            onRename={handleRenameTask}
+            onRename={onRenameTask}
             onDelete={() => setTaskToDelete(task.id)}
-            loading={loadingTasks}
+            loading={loading}
           />
         ))}
       </div>
@@ -198,8 +123,8 @@ function Column({ column, onRename, onDelete, loading }: {
           <Dialog.Title className="text-lg font-bold mb-2">Удалить задачу?</Dialog.Title>
           <Dialog.Description className="mb-4 text-gray-200">Вы уверены, что хотите удалить эту задачу? Это действие необратимо.</Dialog.Description>
           <div className="flex gap-2 justify-end">
-            <button className="px-4 py-2 bg-gray-500 hover:bg-gray-400 text-white rounded" onClick={() => setTaskToDelete(null)} disabled={loadingTasks}>Отмена</button>
-            <button className="px-4 py-2 bg-red-600 text-white rounded disabled:opacity-50" onClick={() => taskToDelete && handleDeleteTask(taskToDelete)} disabled={loadingTasks}>{loadingTasks ? "Удаление..." : "Удалить"}</button>
+            <button className="px-4 py-2 bg-gray-500 hover:bg-gray-400 text-white rounded" onClick={() => setTaskToDelete(null)} disabled={loading}>Отмена</button>
+            <button className="px-4 py-2 bg-red-600 text-white rounded disabled:opacity-50" onClick={async () => { if (taskToDelete) { await onDeleteTask(taskToDelete); setTaskToDelete(null); } }} disabled={loading}>{loading ? "Удаление..." : "Удалить"}</button>
           </div>
         </Dialog.Panel>
       </Dialog>
@@ -211,6 +136,8 @@ function Column({ column, onRename, onDelete, loading }: {
 function BoardView({ board }: { board: { id: string; name: string } }) {
   // Список колонок
   const [columns, setColumns] = useState<{ id: string; title: string; order: number }[]>([]);
+  // Все задачи для всех колонок
+  const [tasks, setTasks] = useState<TaskType[]>([]);
   // Название для новой колонки
   const [newColTitle, setNewColTitle] = useState("");
   // Флаг загрузки/операций
@@ -218,19 +145,32 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
   // id колонки, которую хотим удалить (для модалки)
   const [columnToDelete, setColumnToDelete] = useState<string | null>(null);
 
-  // Загрузка колонок с сервера при смене доски
+  // Загрузка колонок и задач с сервера при смене доски
   useEffect(() => {
     let ignore = false;
-    async function fetchColumns() {
+    async function fetchColumnsAndTasks() {
       setLoading(true);
-      const res = await fetch(`/api/columns?boardId=${board.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (!ignore) setColumns(data.columns);
+      const resCols = await fetch(`/api/columns?boardId=${board.id}`);
+      let columnsData = [];
+      if (resCols.ok) {
+        const data = await resCols.json();
+        columnsData = data.columns;
+        if (!ignore) setColumns(columnsData);
       }
+      // Загружаем задачи для всех колонок
+      const allTasks: TaskType[] = [];
+      for (const col of columnsData) {
+        const resTasks = await fetch(`/api/tasks?columnId=${col.id}`);
+        if (resTasks.ok) {
+          const data = await resTasks.json();
+          // Добавляем columnId вручную к каждой задаче
+          allTasks.push(...data.tasks.map((t: any) => ({ ...t, columnId: col.id })));
+        }
+      }
+      if (!ignore) setTasks(allTasks);
       setLoading(false);
     }
-    fetchColumns();
+    fetchColumnsAndTasks();
     return () => { ignore = true; };
   }, [board.id]);
 
@@ -272,9 +212,78 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
     const res = await fetch(`/api/columns?id=${id}`, { method: 'DELETE' });
     if (res.ok) {
       setColumns(cols => cols.filter(c => c.id !== id));
+      setTasks(ts => ts.filter(t => t.columnId !== id));
     }
     setLoading(false);
     setColumnToDelete(null);
+  }
+
+  // --- Методы для задач ---
+  async function handleAddTask(columnId: string) {
+    setLoading(true);
+    const newOrder = tasks.filter(t => t.columnId === columnId).length + 1;
+    const res = await fetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ columnId, order: newOrder, title: `Новый таск ${newOrder}` })
+    });
+    if (res.ok) {
+      // Перезагрузим все задачи для этой колонки
+      const data = await fetch(`/api/tasks?columnId=${columnId}`);
+      if (data.ok) {
+        const json = await data.json();
+        setTasks(ts => [
+          ...ts.filter(t => t.columnId !== columnId),
+          ...json.tasks.map((t: any) => ({ ...t, columnId }))
+        ]);
+      }
+    }
+    setLoading(false);
+  }
+  async function handleRenameTask(id: string, title: string) {
+    setLoading(true);
+    const res = await fetch('/api/tasks', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, title })
+    });
+    if (res.ok) {
+      setTasks(ts => ts.map(t => t.id === id ? { ...t, title } : t));
+    }
+    setLoading(false);
+  }
+  async function handleEditDesc(id: string, description: string) {
+    setLoading(true);
+    const res = await fetch('/api/tasks', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, description })
+    });
+    if (res.ok) {
+      setTasks(ts => ts.map(t => t.id === id ? { ...t, description } : t));
+    }
+    setLoading(false);
+  }
+  async function handleDeleteTask(id: string) {
+    setLoading(true);
+    // Получаем columnId для фильтрации
+    const task = tasks.find(t => t.id === id);
+    const columnId = task?.columnId;
+    const res = await fetch(`/api/tasks?id=${id}`, { method: 'DELETE' });
+    if (res.ok && columnId) {
+      // После удаления пересортируем order
+      const data = await fetch(`/api/tasks?columnId=${columnId}`);
+      if (data.ok) {
+        const json = await data.json();
+        setTasks(ts => [
+          ...ts.filter(t => t.columnId !== columnId),
+          ...json.tasks.map((t: any) => ({ ...t, columnId }))
+        ]);
+      } else {
+        setTasks(ts => ts.filter(t => t.id !== id));
+      }
+    }
+    setLoading(false);
   }
 
   return (
@@ -300,8 +309,11 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
           <Column
             key={col.id}
             column={col}
-            onRename={handleRenameColumn}
-            onDelete={() => setColumnToDelete(col.id)}
+            tasks={tasks.filter(t => t.columnId === col.id)}
+            onAddTask={handleAddTask}
+            onRenameTask={handleRenameTask}
+            onEditDesc={handleEditDesc}
+            onDeleteTask={handleDeleteTask}
             loading={loading}
           />
         ))}
