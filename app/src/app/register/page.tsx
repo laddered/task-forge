@@ -29,7 +29,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="max-w-sm mx-auto mt-20 p-6 bg-white rounded shadow">
+    <div className="max-w-sm mx-auto mt-20 p-6 bg-gray-800 rounded shadow">
       <h1 className="text-2xl font-bold mb-4">Регистрация</h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <input
