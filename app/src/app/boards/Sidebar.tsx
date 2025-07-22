@@ -110,7 +110,7 @@ export default function Sidebar({ boards, userId, onBoardCreated, onBoardDeleted
                 {/* Поле ввода для редактирования названия доски */}
                 {editingBoardId === board.id ? (
                   <input
-                    className="ml-2 px-1 py-0.5 rounded text-gray-900 w-32"
+                    className="ml-2 px-1 py-0.5 rounded text-gray-100 w-32"
                     value={editingBoardName}
                     maxLength={20}
                     autoFocus
@@ -145,15 +145,18 @@ export default function Sidebar({ boards, userId, onBoardCreated, onBoardDeleted
       )}
       {/* Кнопка для показа боковой панели, если она скрыта */}
       {!showSidebar && (
-        <div className="flex items-center mb-4">
-          <div className="w-full min-w-[120px]">
-            <button
-              className="w-full px-4 py-2 bg-gray-700 text-gray-100 rounded hover:bg-gray-600"
-              onClick={() => setShowSidebar((v) => !v)}
-            >
-              Показать доски
-            </button>
-          </div>
+        <div className="flex items-center mb-4 justify-center">
+          <button
+            className="px-2 py-2 bg-gray-700 text-gray-100 rounded hover:bg-gray-600 flex items-center justify-center"
+            onClick={() => setShowSidebar((v) => !v)}
+            style={{ minWidth: 0, width: '40px', height: '40px' }}
+          >
+            <span className="flex items-center justify-center" title="Показать доски">
+              <svg width="18" height="32" viewBox="0 0 18 32" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+                <path d="M2 2L16 16L2 30" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </span>
+          </button>
         </div>
       )}
       {/* Модальное окно подтверждения удаления доски */}

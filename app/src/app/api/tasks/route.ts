@@ -52,6 +52,11 @@ export async function POST(request: Request) {
   if (!board) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+  // Ограничение: максимум 100 тасков на доске
+  const totalTasks = await prisma.task.count({ where: { column: { boardId: column.boardId } } });
+  if (totalTasks >= 100) {
+    return NextResponse.json({ error: 'Максимум 100 задач на доске' }, { status: 400 });
+  }
   // Определяем order
   let newOrder = order;
   if (!newOrder) {

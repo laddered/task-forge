@@ -47,6 +47,11 @@ export async function POST(request: Request) {
   if (!board) {
     return NextResponse.json({ error: 'Board not found or forbidden' }, { status: 404 });
   }
+  // Ограничение: максимум 10 колонок на доске
+  const totalColumns = await prisma.column.count({ where: { boardId } });
+  if (totalColumns >= 10) {
+    return NextResponse.json({ error: 'Максимум 10 колонок на доске' }, { status: 400 });
+  }
   // Определяем максимальный order
   const maxOrder = await prisma.column.aggregate({
     where: { boardId },

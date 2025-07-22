@@ -33,7 +33,7 @@ model Column {
   id      String  @id @default(uuid())
   title   String
   boardId String
-  board   Board   @relation(fields: [boardId], references: [id])
+  board   Board   @relation(fields: [boardId], references: [id], onDelete: Cascade)
   order   Int
   tasks   Task[]
 }
@@ -43,7 +43,7 @@ model Task {
   title     String
   description String?
   columnId  String
-  column    Column  @relation(fields: [columnId], references: [id])
+  column    Column  @relation(fields: [columnId], references: [id], onDelete: Cascade)
   order     Int
 }
 
