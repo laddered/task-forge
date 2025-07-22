@@ -404,6 +404,7 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
     const overIndex = targetTasks.findIndex(t => t.id === overTask.id);
     // Переместить таск в массиве
     let newTasks: TaskType[] = [];
+    let fromTasks: TaskType[] = [];
     if (fromColumnId === toColumnId) {
       // Внутри одной колонки
       const oldTasks = targetTasks;
@@ -417,7 +418,7 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
       ]);
     } else {
       // Между колонками
-      const fromTasks = tasks.filter(t => t.columnId === fromColumnId).sort((a, b) => b.order - a.order).filter(t => t.id !== activeTask.id);
+      fromTasks = tasks.filter(t => t.columnId === fromColumnId).sort((a, b) => b.order - a.order).filter(t => t.id !== activeTask.id);
       newTasks = [
         ...targetTasks.slice(0, overIndex),
         { ...activeTask, columnId: toColumnId },
@@ -429,17 +430,51 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
         ...newTasks
       ]);
     }
-    // Сохраняем изменения на сервере
-    // (отправляем PATCH для всех затронутых тасков)
-    setTimeout(() => {
-      newTasks.forEach(async t => {
-        await fetch('/api/tasks', {
+    // Сохраняем изменения на сервере для всех затронутых тасков
+    // 1. Собираем все таски, у которых изменился order или columnId
+    const prevTasks = tasks;
+    const changedTasks: TaskType[] = [];
+    // Добавляем таски из newTasks (целевая колонка)
+    for (const t of newTasks) {
+      const prev = prevTasks.find(pt => pt.id === t.id);
+      if (!prev || prev.order !== t.order || prev.columnId !== t.columnId) {
+        changedTasks.push(t);
+      }
+    }
+    // Если между колонками — добавляем таски из fromTasks (исходная колонка)
+    if (fromColumnId !== toColumnId) {
+      for (const t of fromTasks) {
+        const prev = prevTasks.find(pt => pt.id === t.id);
+        if (!prev || prev.order !== t.order || prev.columnId !== t.columnId) {
+          changedTasks.push(t);
+        }
+      }
+    }
+    // 2. PATCH для всех изменённых тасков
+    Promise.all(
+      changedTasks.map(t =>
+        fetch('/api/tasks', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: t.id, order: t.order, columnId: t.columnId })
-        });
-      });
-    }, 0);
+        })
+      )
+    ).then(async () => {
+      // 3. После успешного сохранения — перезагружаем таски для обеих колонок
+      const reloadColumnIds = Array.from(new Set([fromColumnId, toColumnId]));
+      let allNewTasks: TaskType[] = tasks.filter(t => !reloadColumnIds.includes(t.columnId));
+      for (const colId of reloadColumnIds) {
+        const data = await fetch(`/api/tasks?columnId=${colId}`);
+        if (data.ok) {
+          const json = await data.json();
+          allNewTasks = [
+            ...allNewTasks,
+            ...json.tasks.map((t: any) => ({ ...t, columnId: colId }))
+          ];
+        }
+      }
+      setTasks(allNewTasks);
+    });
   }
 
   return (

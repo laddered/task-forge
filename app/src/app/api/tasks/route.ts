@@ -81,11 +81,14 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const body = await request.json();
-  const { id, title, description } = body;
+  console.log('[PATCH /api/tasks] body:', body);
+  const { id, title, description, order, columnId } = body;
   if (!id || typeof id !== 'string') {
+    console.log('[PATCH /api/tasks] Missing id');
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });
   }
   const task = await prisma.task.findUnique({ where: { id }, include: { column: { include: { board: true } } } });
+  console.log('[PATCH /api/tasks] found task:', task);
   if (!task) {
     return NextResponse.json({ error: 'Task not found' }, { status: 404 });
   }
@@ -95,9 +98,15 @@ export async function PATCH(request: Request) {
   }
   const updated = await prisma.task.update({
     where: { id },
-    data: { title, description },
-    select: { id: true, title: true, description: true, order: true },
+    data: {
+      ...(title !== undefined && { title }),
+      ...(description !== undefined && { description }),
+      ...(order !== undefined && { order }),
+      ...(columnId !== undefined && { columnId }),
+    },
+    select: { id: true, title: true, description: true, order: true, columnId: true },
   });
+  console.log('[PATCH /api/tasks] updated task:', updated);
   return NextResponse.json({ task: updated });
 }
 
