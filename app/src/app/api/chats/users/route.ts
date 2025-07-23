@@ -1,12 +1,12 @@
-import { cookies } from "next/headers";
-import { prisma } from '../../prismaClient';
-import ClientChats from './ClientChats';
+import { NextResponse } from 'next/server';
+import { prisma } from '../../../../prismaClient';
+import { cookies } from 'next/headers';
 
-export default async function ChatsPage() {
+export async function GET() {
   const cookieStore = await cookies();
-  const session = cookieStore.get("session")?.value;
+  const session = cookieStore.get('session')?.value;
   if (!session) {
-    return <div className="p-8">Необходимо войти в систему.</div>;
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   // Получаем все сообщения, где пользователь отправитель или получатель
   const messages = await prisma.message.findMany({
@@ -23,7 +23,6 @@ export default async function ChatsPage() {
       receiver: { select: { id: true, name: true, email: true } },
     },
   });
-
   // Собираем уникальных собеседников
   const chatUsersMap = new Map();
   for (const msg of messages) {
@@ -33,13 +32,5 @@ export default async function ChatsPage() {
     }
   }
   const chatUsers = Array.from(chatUsersMap.values());
-
-  // Получаем всех пользователей, кроме себя
-  const allUsers = await prisma.user.findMany({
-    where: { NOT: { id: session } },
-    select: { id: true, name: true, email: true },
-    orderBy: { name: 'asc' },
-  });
-
-  return <ClientChats chatUsers={chatUsers} userId={session} allUsers={allUsers} />;
+  return NextResponse.json({ chatUsers });
 } 
