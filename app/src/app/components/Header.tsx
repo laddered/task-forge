@@ -102,9 +102,7 @@ export default function Header({ email, name }: { email?: string, name?: string 
                 </label>
               </div>
               <div className="border-t border-gray-800 pt-4 mt-2">
-                <form action="/api/logout" method="POST">
-                  <button type="submit" className="w-full text-left px-3 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-medium transition-colors">Выйти</button>
-                </form>
+                <LogoutButton />
               </div>
             </div>
           )}
