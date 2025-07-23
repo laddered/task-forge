@@ -1,6 +1,7 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog } from "@headlessui/react";
+import { io, Socket } from "socket.io-client";
 
 interface ChatUser {
   id: string;
@@ -21,6 +22,79 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
   const [search, setSearch] = useState("");
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [chatUserList, setChatUserList] = useState<ChatUser[]>(chatUsers);
+  const [messages, setMessages] = useState<{ senderId: string; receiverId: string; text: string; timestamp?: string }[]>([]);
+  const socketRef = useRef<Socket | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [isTyping, setIsTyping] = useState(false); // собеседник печатает
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  // Счетчики непрочитанных сообщений
+  const [unread, setUnread] = useState<{ [userId: string]: number }>({});
+
+  // Подключение к socket.io серверу + онлайн-статусы
+  useEffect(() => {
+    const socket = io("ws://localhost:4000");
+    socketRef.current = socket;
+    // Сообщаем серверу свой userId
+    socket.emit('login', { userId });
+    // Принимаем онлайн/оффлайн события
+    function handleOnline({ userId }: { userId: string }) {
+      setOnlineUsers(prev => new Set(prev).add(userId));
+    }
+    function handleOffline({ userId }: { userId: string }) {
+      setOnlineUsers(prev => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+    }
+    socket.on('user online', handleOnline);
+    socket.on('user offline', handleOffline);
+    socket.on("chat message", (msg) => {
+      setMessages((prev) => [...prev, msg]);
+    });
+    return () => {
+      socket.disconnect();
+    };
+    // eslint-disable-next-line
+  }, [userId]);
+
+  // Увеличивать счетчик, если пришло новое сообщение и чат не выбран
+  useEffect(() => {
+    if (!socketRef.current) return;
+    const socket = socketRef.current;
+    function onMessage(msg: { senderId: string; receiverId: string; text: string; timestamp?: string }) {
+      setMessages((prev) => [...prev, msg]);
+      // Если чат не выбран или выбран другой чат, увеличиваем счетчик
+      if (msg.receiverId === userId && msg.senderId !== selectedUserId) {
+        setUnread(prev => ({ ...prev, [msg.senderId]: (prev[msg.senderId] || 0) + 1 }));
+      }
+    }
+    socket.on("chat message", onMessage);
+    return () => {
+      socket.off("chat message", onMessage);
+    };
+  }, [selectedUserId, userId]);
+
+  // Сброс счетчика при открытии чата
+  useEffect(() => {
+    if (selectedUserId) {
+      setUnread(prev => ({ ...prev, [selectedUserId]: 0 }));
+    }
+  }, [selectedUserId]);
+
+  // Глобальный счетчик для Header (через кастомное событие)
+  useEffect(() => {
+    const total = Object.values(unread).reduce((a, b) => a + b, 0);
+    window.dispatchEvent(new CustomEvent('chats-unread', { detail: total }));
+  }, [unread]);
+
+  // Отправка сообщения через сокет
+  function sendSocketMessage(receiverId: string, text: string) {
+    if (socketRef.current) {
+      socketRef.current.emit("chat message", { senderId: userId, receiverId, text, timestamp: Date.now() });
+    }
+  }
 
   // Фильтрация пользователей по поиску
   const filteredUsers = useMemo(() => {
@@ -40,13 +114,15 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
 
   // TODO: отправка приветственного сообщения
   async function handleStartChat() {
-    // Отправить 👋 каждому выбранному пользователю
     await Promise.all(selectedUserIds.map(async (receiverId) => {
+      // API для истории
       await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ receiverId, content: '👋' }),
       });
+      // Live через сокет
+      sendSocketMessage(receiverId, '��');
     }));
     // Обновить список чатов
     const res = await fetch('/api/chats/users');
@@ -58,6 +134,52 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
     setSelectedUserIds([]);
     setSearch("");
   }
+
+  const [input, setInput] = useState("");
+  function handleSendMessage() {
+    if (!selectedUserId || !input.trim()) return;
+    // API для истории
+    fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ receiverId: selectedUserId, content: input }),
+    });
+    // Live через сокет
+    sendSocketMessage(selectedUserId, input);
+    setInput("");
+  }
+
+  // Отправка события 'typing' при вводе текста
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setInput(e.target.value);
+    if (socketRef.current && selectedUserId) {
+      socketRef.current.emit('typing', { from: userId, to: selectedUserId });
+    }
+  }
+
+  // Приём события 'typing' от собеседника
+  useEffect(() => {
+    if (!socketRef.current) return;
+    const socket = socketRef.current;
+    function onTyping({ from, to }: { from: string; to: string }) {
+      if (from === selectedUserId && to === userId) {
+        setIsTyping(true);
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 1500);
+      }
+    }
+    socket.on('typing', onTyping);
+    return () => {
+      socket.off('typing', onTyping);
+    };
+  }, [selectedUserId, userId]);
+
+  // Авто-скролл вниз при новых сообщениях
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, selectedUserId]);
 
   return (
     <main className="p-8 flex h-[80vh]">
@@ -82,12 +204,16 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
           </div>
           <ul className="space-y-2">
             {chatUserList.map((user) => (
-              <li key={user.id}>
+              <li key={user.id} className="flex items-center gap-2">
+                <span className={`inline-block w-2 h-2 rounded-full ${onlineUsers.has(user.id) ? 'bg-green-500' : 'bg-gray-400'}`}></span>
                 <button
-                  className={`w-full text-left px-2 py-1 rounded hover:bg-gray-700 transition-colors ${selectedUserId === user.id ? 'bg-gray-700 text-white' : 'text-gray-200'}`}
+                  className={`flex-1 text-left px-2 py-1 rounded hover:bg-gray-700 transition-colors ${selectedUserId === user.id ? 'bg-gray-700 text-white' : 'text-gray-200'}`}
                   onClick={() => setSelectedUserId(user.id)}
                 >
                   {user.name || user.email}
+                  {unread[user.id] > 0 && (
+                    <span className="ml-2 inline-block bg-red-500 text-white text-xs rounded-full px-2 py-0.5 align-middle">{unread[user.id]}</span>
+                  )}
                 </button>
               </li>
             ))}
@@ -113,9 +239,38 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
       <section className="flex-1 bg-white rounded shadow p-6 flex flex-col">
         {selectedUserId ? (
           <div className="flex-1 flex flex-col">
-            <div className="font-bold mb-2">Чат с {chatUsers.find(u => u.id === selectedUserId)?.name || chatUsers.find(u => u.id === selectedUserId)?.email}</div>
-            {/* Здесь будет окно сообщений и форма отправки */}
-            <div className="flex-1 flex items-center justify-center text-gray-400">Live chat coming soon...</div>
+            <div className="font-bold mb-2">Чат с {chatUserList.find(u => u.id === selectedUserId)?.name || chatUserList.find(u => u.id === selectedUserId)?.email}</div>
+            {/* Сообщения */}
+            <div className="flex-1 overflow-y-auto mb-4 bg-gray-100 rounded p-2">
+              {messages.filter(m => (m.senderId === userId && m.receiverId === selectedUserId) || (m.senderId === selectedUserId && m.receiverId === userId)).map((msg, idx) => (
+                <div key={idx} className={`mb-2 flex flex-col ${msg.senderId === userId ? 'items-end' : 'items-start'}`}>
+                  <span className={`inline-block px-3 py-1 rounded ${msg.senderId === userId ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-900'}`}>{msg.text}</span>
+                  <span className="text-xs text-gray-400 mt-0.5">
+                    {msg.timestamp ? new Date(Number(msg.timestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                  </span>
+                </div>
+              ))}
+              {/* Индикатор "печатает..." */}
+              {isTyping && (
+                <div className="text-xs text-gray-500 mt-1 ml-2">Печатает...</div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+            {/* Форма отправки */}
+            <div className="flex gap-2">
+              <input
+                className="flex-1 border rounded px-2 py-1"
+                placeholder="Сообщение..."
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={e => { if (e.key === 'Enter') handleSendMessage(); }}
+              />
+              <button
+                className="bg-blue-600 text-white px-4 py-1 rounded disabled:opacity-50"
+                onClick={handleSendMessage}
+                disabled={!input.trim()}
+              >Отправить</button>
+            </div>
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-400">Выберите чат слева</div>
