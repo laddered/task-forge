@@ -48,11 +48,13 @@ function SortableTask({ task, onRename, onDelete, onEditDesc, loading, listeners
   useEffect(() => { setTitle(task.title); }, [task.title]);
   useEffect(() => { setDesc(task.description); }, [task.description]);
   function handleRename() {
-    if (title.trim() && title !== task.title) onRename(task.id, title);
+    const safeTitle = title.trim() === '' ? 'Не может быть пустым!' : title;
+    if (safeTitle !== task.title) onRename(task.id, safeTitle);
     setIsEditing(false);
   }
   function handleEditDescSave() {
-    if (desc !== task.description && onEditDesc) onEditDesc(task.id, desc);
+    const safeDesc = desc.trim() === '' ? 'Не может быть пустым!' : desc;
+    if (safeDesc !== task.description && onEditDesc) onEditDesc(task.id, safeDesc);
     setIsEditingDesc(false);
   }
   return (
@@ -199,9 +201,10 @@ function Column({ column, tasks, onAddTask, onRenameTask, onEditDesc, onDeleteTa
 
   // Сохранить новое название
   function handleRename() {
-    if (title.trim() && title !== column.title) {
+    const safeTitle = title.trim() === '' ? 'Не может быть пустым!' : title;
+    if (safeTitle !== column.title) {
       // Переименование колонки делается через пропсы (BoardView)
-      // onRename(column.id, title); // убрано, теперь только для задач
+      // onRename(column.id, safeTitle); // убрано, теперь только для задач
     }
     setIsEditing(false);
   }
@@ -367,13 +370,14 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
   // Переименовать колонку через API
   async function handleRenameColumn(id: string, title: string) {
     setLoading(true);
+    const safeTitle = title.trim() === '' ? 'Не может быть пустым!' : title;
     const res = await fetch('/api/columns', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, title })
+      body: JSON.stringify({ id, title: safeTitle })
     });
     if (res.ok) {
-      setColumns(cols => cols.map(c => c.id === id ? { ...c, title } : c));
+      setColumns(cols => cols.map(c => c.id === id ? { ...c, title: safeTitle } : c));
     }
     setLoading(false);
   }
@@ -421,25 +425,27 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
   }
   async function handleRenameTask(id: string, title: string) {
     setLoading(true);
+    const safeTitle = title.trim() === '' ? 'Не может быть пустым!' : title;
     const res = await fetch('/api/tasks', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, title })
+      body: JSON.stringify({ id, title: safeTitle })
     });
     if (res.ok) {
-      setTasks(ts => ts.map(t => t.id === id ? { ...t, title } : t));
+      setTasks(ts => ts.map(t => t.id === id ? { ...t, title: safeTitle } : t));
     }
     setLoading(false);
   }
   async function handleEditDesc(id: string, description: string) {
     setLoading(true);
+    const safeDesc = description.trim() === '' ? 'Не может быть пустым!' : description;
     const res = await fetch('/api/tasks', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, description })
+      body: JSON.stringify({ id, description: safeDesc })
     });
     if (res.ok) {
-      setTasks(ts => ts.map(t => t.id === id ? { ...t, description } : t));
+      setTasks(ts => ts.map(t => t.id === id ? { ...t, description: safeDesc } : t));
     }
     setLoading(false);
   }

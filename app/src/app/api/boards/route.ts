@@ -12,7 +12,7 @@ export async function GET() {
   // Получаем доски, принадлежащие пользователю
   const boards = await prisma.board.findMany({
     where: { ownerId: session },
-    orderBy: { name: 'asc' },
+    orderBy: { id: 'asc' },
     select: { id: true, name: true },
   });
   return NextResponse.json({ boards });

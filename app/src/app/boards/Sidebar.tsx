@@ -46,11 +46,12 @@ export default function Sidebar({ boards, userId, onBoardCreated, onBoardDeleted
   // Переименование доски (PATCH-запрос)
   async function handleRenameBoard(boardId: string, newName: string) {
     setRenameError("");
+    const safeName = newName.trim() === '' ? 'Не может быть пустым!' : newName;
     try {
       const res = await fetch("/api/boards", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: boardId, name: newName })
+        body: JSON.stringify({ id: boardId, name: safeName })
       });
       if (!res.ok) {
         const data = await res.json();
@@ -58,7 +59,7 @@ export default function Sidebar({ boards, userId, onBoardCreated, onBoardDeleted
         return;
       }
       if (typeof onBoardRenamed === 'function') {
-        onBoardRenamed(boardId, newName);
+        onBoardRenamed(boardId, safeName);
       }
     } catch (e) {
       setRenameError("Ошибка сети");
@@ -69,7 +70,7 @@ export default function Sidebar({ boards, userId, onBoardCreated, onBoardDeleted
     <>
       {/* Боковая панель со списком досок */}
       {showSidebar && (
-        <aside className="w-64 bg-gray-800 p-4 rounded shadow flex flex-col">
+        <aside className="w-64 bg-gray-800 p-4 rounded shadow flex flex-col self-start">
           <div className="flex items-center mb-4">
             <div className="w-full min-w-[120px]">
               {/* Кнопка скрытия боковой панели */}
@@ -161,7 +162,9 @@ export default function Sidebar({ boards, userId, onBoardCreated, onBoardDeleted
       {/* Модальное окно подтверждения удаления доски */}
       <Dialog open={showModal} onClose={() => setShowModal(false)} className="fixed z-50 inset-0 flex items-center justify-center">
         <Dialog.Panel className="bg-gray-800 p-6 rounded shadow-xl max-w-sm w-full">
-          <Dialog.Title className="text-lg font-bold mb-2 text-gray-100">Удалить доску?</Dialog.Title>
+          <Dialog.Title className="text-lg font-bold mb-2 text-gray-100">
+            Удалить доску{boardToDelete ? `: "${boards.find(b => b.id === boardToDelete)?.name || ''}"` : ''}?
+          </Dialog.Title>
           <Dialog.Description className="mb-4 text-gray-200">Вы уверены, что хотите удалить эту доску? Это действие необратимо.</Dialog.Description>
           <div className="flex gap-2 justify-end">
             <button className="px-4 py-2 bg-gray-500 hover:bg-gray-400 text-gray-100 rounded" onClick={() => setShowModal(false)} disabled={deleting}>Отмена</button>
