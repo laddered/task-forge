@@ -47,4 +47,27 @@ export async function GET(request: Request) {
     select: { id: true, senderId: true, receiverId: true, text: true, timestamp: true },
   });
   return NextResponse.json({ messages });
+}
+
+export async function DELETE(request: Request) {
+  const cookieStore = await cookies();
+  const session = cookieStore.get('session')?.value;
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const { searchParams } = new URL(request.url);
+  const userId = searchParams.get('userId');
+  if (!userId) {
+    return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+  }
+  // Удаляем все сообщения между session и userId
+  await prisma.message.deleteMany({
+    where: {
+      OR: [
+        { senderId: session, receiverId: userId },
+        { senderId: userId, receiverId: session },
+      ],
+    },
+  });
+  return NextResponse.json({ success: true });
 } 

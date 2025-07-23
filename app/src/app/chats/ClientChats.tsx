@@ -194,7 +194,7 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
     <main className="p-8 flex h-[80vh]">
       {/* Sidebar */}
       {showSidebar && (
-        <aside className="w-64 bg-gray-800 p-4 rounded shadow flex flex-col mr-8">
+        <aside className="w-64 bg-gray-800 p-4 rounded shadow flex flex-col self-start">
           <div className="flex items-center mb-4">
             <button
               className="w-full px-4 py-2 bg-gray-700 text-gray-100 rounded hover:bg-gray-600 cursor-pointer"
@@ -245,10 +245,34 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
         </div>
       )}
       {/* Chat window */}
-      <section className="flex-1 bg-gray-800 rounded shadow p-6 flex flex-col">
+      <section className="flex-1 flex flex-col pl-8 pr-8">
+      <h1 className="text-xl font-bold mb-4">
+        Ваши чаты
+        {selectedUserId && (
+          <> &gt; Чат с {chatUserList.find(u => u.id === selectedUserId)?.name || chatUserList.find(u => u.id === selectedUserId)?.email}</>
+        )}
+      </h1>
         {selectedUserId ? (
           <div className="flex-1 flex flex-col">
-            <div className="font-bold mb-2">Чат с {chatUserList.find(u => u.id === selectedUserId)?.name || chatUserList.find(u => u.id === selectedUserId)?.email}</div>
+            {/* Кнопка удаления чата */}
+            <div className="flex justify-end mb-2">
+              <button
+                className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                onClick={async () => {
+                  if (!selectedUserId) return;
+                  if (!window.confirm('Удалить все сообщения с этим пользователем?')) return;
+                  await fetch(`/api/messages?userId=${selectedUserId}`, { method: 'DELETE' });
+                  setSelectedUserId(null);
+                  // Обновить список чатов
+                  const res = await fetch('/api/chats/users');
+                  if (res.ok) {
+                    const data = await res.json();
+                    setChatUserList(data.chatUsers);
+                  }
+                  setMessages([]);
+                }}
+              >Удалить чат</button>
+            </div>
             {/* Сообщения */}
             <div className="flex-1 overflow-y-auto mb-4 bg-gray-700 rounded p-2">
               {messages.filter(m => (m.senderId === userId && m.receiverId === selectedUserId) || (m.senderId === selectedUserId && m.receiverId === userId)).map((msg, idx) => (
