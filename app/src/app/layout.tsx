@@ -21,13 +21,13 @@ export const metadata: Metadata = {
   description: "Task management app",
 };
 
-async function getCurrentUserEmail(): Promise<string | undefined> {
+async function getCurrentUser(): Promise<{ email?: string, name?: string } | undefined> {
   const cookieStore = await cookies();
   const session = cookieStore.get("session")?.value;
   if (!session) return undefined;
   const prisma = new PrismaClient();
-  const user = await prisma.user.findUnique({ where: { id: session }, select: { email: true } });
-  return user?.email;
+  const user = await prisma.user.findUnique({ where: { id: session }, select: { email: true, name: true } });
+  return user ? { email: user.email, name: user.name } : undefined;
 }
 
 export default async function RootLayout({
@@ -35,11 +35,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const email = await getCurrentUserEmail();
+  const user = await getCurrentUser();
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
-        <Header email={email} />
+        <Header email={user?.email} name={user?.name} />
         <main className="flex-1 flex flex-col">{children}</main>
         <Footer />
       </body>

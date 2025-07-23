@@ -7,6 +7,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
+  const [repeatPassword, setRepeatPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -14,6 +15,11 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    if (password !== repeatPassword) {
+      setError("Пароли не совпадают");
+      setLoading(false);
+      return;
+    }
     const res = await fetch("/api/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -54,6 +60,15 @@ export default function RegisterPage() {
           value={password}
           onChange={e => setPassword(e.target.value)}
           required
+          className="border rounded px-3 py-2"
+        />
+        <input
+          type="password"
+          placeholder="Повторите пароль"
+          value={repeatPassword}
+          onChange={e => setRepeatPassword(e.target.value)}
+          required
+          autoComplete="new-password"
           className="border rounded px-3 py-2"
         />
         {error && <div className="text-red-600 text-sm">{error}</div>}
