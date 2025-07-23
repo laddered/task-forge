@@ -64,10 +64,10 @@ function SortableTask({ task, onRename, onDelete, onEditDesc, loading, listeners
       className={`bg-white rounded shadow p-2 mb-2 flex flex-col h-28 min-h-28 max-h-28 transition-all duration-150 ${isDragging ? 'opacity-50 border-2 border-blue-500' : ''}`}
     >
       <div className="flex items-center mb-1">
-        <button className="mr-1" onClick={() => setIsEditing(true)} title="Переименовать" disabled={loading}>✏️</button>
+        {/* Удалена кнопка карандаша, теперь редактирование по двойному клику */}
         {isEditing ? (
           <input
-            className="border rounded px-1 py-0.5 text-sm w-24 mr-2 text-gray-800"
+            className="w-24 mr-2 text-sm font-semibold text-gray-800 truncate select-text hover:cursor-text bg-transparent outline-none border-none focus:ring-0"
             value={title}
             onChange={e => setTitle(e.target.value)}
             onBlur={handleRename}
@@ -76,7 +76,14 @@ function SortableTask({ task, onRename, onDelete, onEditDesc, loading, listeners
             disabled={loading}
           />
         ) : (
-          <span className="font-semibold text-gray-800 flex-1 truncate">{task.title}</span>
+          <span
+            className="font-semibold text-gray-800 flex-1 truncate select-text hover:cursor-text"
+            onDoubleClick={() => setIsEditing(true)}
+            title="Двойной клик для редактирования"
+            style={{ cursor: 'text' }}
+          >
+            {task.title}
+          </span>
         )}
         <button className="ml-auto text-red-500" onClick={() => onDelete(task.id)} title="Удалить" disabled={loading}>❌</button>
       </div>
@@ -84,7 +91,7 @@ function SortableTask({ task, onRename, onDelete, onEditDesc, loading, listeners
         {isEditingDesc ? (
           <div className="flex flex-col w-full">
             <textarea
-              className="border rounded px-1 py-0.5 text-sm w-full text-gray-800 resize-none"
+              className="w-full text-sm text-gray-600 resize-none bg-transparent outline-none border-none focus:ring-0 select-text hover:cursor-text"
               value={desc}
               onChange={e => setDesc(e.target.value.slice(0, 100))}
               onBlur={handleEditDescSave}
@@ -107,19 +114,15 @@ function SortableTask({ task, onRename, onDelete, onEditDesc, loading, listeners
           </div>
         ) : (
           <>
-            <span className="flex-1 whitespace-pre-line overflow-hidden text-ellipsis block max-h-10" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+            <span
+              className="flex-1 whitespace-pre-line overflow-hidden text-ellipsis block max-h-10 select-text hover:cursor-text"
+              style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', cursor: 'text' }}
+              onDoubleClick={() => setIsEditingDesc(true)}
+              title="Двойной клик для редактирования описания"
+            >
               {task.description}
             </span>
-            {onEditDesc && (
-              <button
-                className="ml-1 text-blue-500 hover:text-blue-700"
-                onClick={() => setIsEditingDesc(true)}
-                title="Редактировать описание"
-                disabled={loading}
-              >
-                ✏️
-              </button>
-            )}
+            {/* Кнопка карандаша удалена */}
           </>
         )}
       </div>
@@ -206,14 +209,10 @@ function Column({ column, tasks, onAddTask, onRenameTask, onEditDesc, onDeleteTa
   return (
     <div className="bg-gray-300 rounded shadow p-4 w-64 mr-4 flex-shrink-0 opacity-100">
       <div className="flex items-center mb-2">
-        {/* Кнопка-карандаш для переименования */}
-        <button className="mr-2" onClick={() => setIsEditing(true)} title="Переименовать" disabled={loading}>
-          ✏️
-        </button>
-        {/* Поле ввода для редактирования названия */}
+        {/* Кнопка-карандаш удалена, теперь редактирование по двойному клику */}
         {isEditing ? (
           <input
-            className="border rounded px-1 py-0.5 text-sm w-24 mr-2"
+            className="w-24 mr-2 text-sm font-semibold text-gray-800 truncate select-text hover:cursor-text bg-transparent outline-none border-none focus:ring-0"
             value={title}
             onChange={e => setTitle(e.target.value)}
             onBlur={handleRename}
@@ -222,7 +221,14 @@ function Column({ column, tasks, onAddTask, onRenameTask, onEditDesc, onDeleteTa
             disabled={loading}
           />
         ) : (
-          <span className="font-semibold text-gray-800 flex-1">{column.title}</span>
+          <span
+            className="font-semibold text-gray-800 flex-1 select-text hover:cursor-text"
+            onDoubleClick={() => setIsEditing(true)}
+            title="Двойной клик для редактирования названия колонки"
+            style={{ cursor: 'text' }}
+          >
+            {column.title}
+          </span>
         )}
         {/* Кнопка-крестик для удаления */}
         {/* onDelete теперь передается из BoardView */}
@@ -636,6 +642,11 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
   );
 }
 
+// Инструкция для Sidebar:
+// Чтобы реализовать редактирование названия Board по двойному клику, в компоненте Sidebar:
+// - Уберите кнопку-карандаш для редактирования названия доски.
+// - Сделайте так, чтобы название доски (Board) редактировалось по двойному клику (onDoubleClick) на текст.
+// - При наведении на название доски должен быть cursor: text (например, className="hover:cursor-text select-text").
 // Главный компонент: список досок, выбор доски, отображение BoardView
 export default function ClientBoards({ boards: initialBoards, userId }: { boards: { id: string, name: string }[]; userId: string }) {
   // boards — локальное состояние списка досок

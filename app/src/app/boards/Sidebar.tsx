@@ -99,18 +99,10 @@ export default function Sidebar({ boards, userId, onBoardCreated, onBoardDeleted
                 className={`flex items-center justify-between group cursor-pointer rounded hover:bg-gray-700 transition-colors duration-150 ${selectedBoardId === board.id ? 'bg-gray-700' : ''}`}
                 onClick={() => onSelectBoard(board.id)}
               >
-                {/* Иконка-заменитель для редактирования */}
-                <span
-                  className="mr-2 cursor-pointer"
-                  onClick={e => { e.stopPropagation(); setEditingBoardId(board.id); setEditingBoardName(board.name); }}
-                  title="Редактировать название"
-                >
-                  ✏️
-                </span>
-                {/* Поле ввода для редактирования названия доски */}
+                {/* Кнопка-карандаш удалена. Теперь редактирование по двойному клику на название */}
                 {editingBoardId === board.id ? (
                   <input
-                    className="ml-2 px-1 py-0.5 rounded text-gray-100 w-32"
+                    className="ml-2 truncate text-gray-100 select-text hover:cursor-text w-32 bg-transparent outline-none border-none focus:ring-0"
                     value={editingBoardName}
                     maxLength={20}
                     autoFocus
@@ -127,8 +119,15 @@ export default function Sidebar({ boards, userId, onBoardCreated, onBoardDeleted
                   // Отображение ошибки при переименовании
                   <span className="ml-2 text-red-400 text-xs">{renameError}</span>
                 ) : (
-                  // Название доски
-                  <span className="ml-2 truncate text-gray-100">{board.name}</span>
+                  // Название доски (двойной клик для редактирования)
+                  <span
+                    className="ml-2 truncate text-gray-100 select-text hover:cursor-text"
+                    onDoubleClick={e => { e.stopPropagation(); setEditingBoardId(board.id); setEditingBoardName(board.name); }}
+                    title="Двойной клик для редактирования названия"
+                    style={{ cursor: 'text' }}
+                  >
+                    {board.name}
+                  </span>
                 )}
                 {/* Кнопка удаления доски */}
                 <button
