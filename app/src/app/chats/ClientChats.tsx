@@ -50,9 +50,6 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
     }
     socket.on('user online', handleOnline);
     socket.on('user offline', handleOffline);
-    socket.on("chat message", (msg) => {
-      setMessages((prev) => [...prev, msg]);
-    });
     return () => {
       socket.disconnect();
     };
@@ -181,6 +178,18 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
     }
   }, [messages, selectedUserId]);
 
+  // Подгрузка истории сообщений при выборе собеседника
+  useEffect(() => {
+    if (!selectedUserId) return;
+    fetch(`/api/messages?userId=${selectedUserId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data.messages)) {
+          setMessages(data.messages);
+        }
+      });
+  }, [selectedUserId]);
+
   return (
     <main className="p-8 flex h-[80vh]">
       {/* Sidebar */}
@@ -236,23 +245,23 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
         </div>
       )}
       {/* Chat window */}
-      <section className="flex-1 bg-white rounded shadow p-6 flex flex-col">
+      <section className="flex-1 bg-gray-800 rounded shadow p-6 flex flex-col">
         {selectedUserId ? (
           <div className="flex-1 flex flex-col">
             <div className="font-bold mb-2">Чат с {chatUserList.find(u => u.id === selectedUserId)?.name || chatUserList.find(u => u.id === selectedUserId)?.email}</div>
             {/* Сообщения */}
-            <div className="flex-1 overflow-y-auto mb-4 bg-gray-100 rounded p-2">
+            <div className="flex-1 overflow-y-auto mb-4 bg-gray-700 rounded p-2">
               {messages.filter(m => (m.senderId === userId && m.receiverId === selectedUserId) || (m.senderId === selectedUserId && m.receiverId === userId)).map((msg, idx) => (
                 <div key={idx} className={`mb-2 flex flex-col ${msg.senderId === userId ? 'items-end' : 'items-start'}`}>
-                  <span className={`inline-block px-3 py-1 rounded ${msg.senderId === userId ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-900'}`}>{msg.text}</span>
+                  <span className={`inline-block px-3 py-1 rounded ${msg.senderId === userId ? 'bg-blue-500 text-white' : 'bg-gray-600 text-gray-100'}`}>{msg.text}</span>
                   <span className="text-xs text-gray-400 mt-0.5">
-                    {msg.timestamp ? new Date(Number(msg.timestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                    {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                   </span>
                 </div>
               ))}
               {/* Индикатор "печатает..." */}
               {isTyping && (
-                <div className="text-xs text-gray-500 mt-1 ml-2">Печатает...</div>
+                <div className="text-xs text-gray-300 mt-1 ml-2">Печатает...</div>
               )}
               <div ref={messagesEndRef} />
             </div>
@@ -273,24 +282,24 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-400">Выберите чат слева</div>
+          <div className="flex-1 flex items-center justify-center text-gray-500">Выберите чат слева</div>
         )}
       </section>
       {/* Модалка создания нового чата */}
       <Dialog open={showNewChatModal} onClose={() => setShowNewChatModal(false)} className="fixed z-50 inset-0 flex items-center justify-center">
-        <Dialog.Panel className="bg-gray-800 p-6 rounded shadow-xl max-w-md w-full">
+        <Dialog.Panel className="bg-gray-900 p-6 rounded shadow-xl max-w-md w-full">
           <Dialog.Title className="text-lg font-bold mb-2 text-gray-100">Новый чат</Dialog.Title>
-          <Dialog.Description className="mb-4 text-gray-200">Выберите пользователей для нового чата</Dialog.Description>
+          <Dialog.Description className="mb-4 text-gray-300">Выберите пользователей для нового чата</Dialog.Description>
           <input
-            className="w-full mb-3 px-3 py-2 rounded border border-gray-400 focus:outline-none focus:ring"
+            className="w-full mb-3 px-3 py-2 rounded border border-gray-600 focus:outline-none focus:ring bg-gray-800 text-gray-100 placeholder-gray-400"
             placeholder="Поиск по имени или email"
             value={search}
             onChange={e => setSearch(e.target.value)}
             autoFocus
           />
-          <div className="max-h-60 overflow-y-auto mb-4 bg-gray-700 rounded p-2">
+          <div className="max-h-60 overflow-y-auto mb-4 bg-gray-800 rounded p-2">
             {filteredUsers.length === 0 ? (
-              <div className="text-gray-300 text-sm">Нет пользователей</div>
+              <div className="text-gray-400 text-sm">Нет пользователей</div>
             ) : (
               <ul className="space-y-1">
                 {filteredUsers.map(user => (
