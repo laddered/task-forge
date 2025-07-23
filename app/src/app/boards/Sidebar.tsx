@@ -75,7 +75,7 @@ export default function Sidebar({ boards, userId, onBoardCreated, onBoardDeleted
             <div className="w-full min-w-[120px]">
               {/* Кнопка скрытия боковой панели */}
               <button
-                className="w-full px-4 py-2 bg-gray-700 text-gray-100 rounded hover:bg-gray-600"
+                className="w-full px-4 py-2 bg-gray-700 text-gray-100 rounded hover:bg-gray-600 cursor-pointer"
                 onClick={() => setShowSidebar((v) => !v)}
               >
                 Скрыть доски
@@ -85,7 +85,7 @@ export default function Sidebar({ boards, userId, onBoardCreated, onBoardDeleted
           <div className="w-full min-w-[120px] mb-4">
             {/* Кнопка создания новой доски */}
             <button
-              className="w-full px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+              className="w-full px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-600 disabled:opacity-50 cursor-pointer"
               onClick={handleCreateBoard}
               disabled={creating || boards.length >= MAX_BOARDS}
             >
@@ -132,7 +132,7 @@ export default function Sidebar({ boards, userId, onBoardCreated, onBoardDeleted
                 )}
                 {/* Кнопка удаления доски */}
                 <button
-                  className="ml-2 mr-2 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition"
+                  className="ml-2 mr-2 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition cursor-pointer"
                   onClick={e => { e.stopPropagation(); setBoardToDelete(board.id); setShowModal(true); }}
                   aria-label="Удалить доску"
                 >
@@ -147,7 +147,7 @@ export default function Sidebar({ boards, userId, onBoardCreated, onBoardDeleted
       {!showSidebar && (
         <div className="flex items-center mb-4 justify-center">
           <button
-            className="px-2 py-2 bg-gray-700 text-gray-100 rounded hover:bg-gray-600 flex items-center justify-center"
+            className="px-2 py-2 bg-gray-700 text-gray-100 rounded hover:bg-gray-600 flex items-center justify-center cursor-pointer"
             onClick={() => setShowSidebar((v) => !v)}
             style={{ minWidth: 0, width: '40px', height: '40px' }}
           >

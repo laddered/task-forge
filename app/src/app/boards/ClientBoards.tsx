@@ -10,6 +10,7 @@ import {
   useSensors,
   DragOverlay,
   DragEndEvent,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -63,7 +64,7 @@ function SortableTask({ task, onRename, onDelete, onEditDesc, loading, listeners
       style={style}
       {...attributes}
       {...listeners}
-      className={`bg-white rounded shadow p-2 mb-2 flex flex-col h-28 min-h-28 max-h-28 transition-all duration-150 ${isDragging ? 'opacity-50 border-2 border-blue-500' : ''}`}
+      className={`bg-white rounded shadow p-2 mb-2 flex flex-col h-28 min-h-28 max-h-28 transition-all duration-150 ${isDragging ? 'opacity-50 border-2 border-blue-500 cursor-grabbing' : 'cursor-grab'} `}
     >
       <div className="flex items-center mb-1">
         {/* Удалена кнопка карандаша, теперь редактирование по двойному клику */}
@@ -170,6 +171,18 @@ function DraggableTask({ task, onRename, onDelete, onEditDesc, loading }: {
   );
 }
 
+// Заглушка для пустой колонки (невидимая droppable-область)
+function InvisibleEmptyColumnPlaceholder({ columnId }: { columnId: string }) {
+  const { setNodeRef } = useDroppable({ id: `empty-${columnId}` });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ height: 48, pointerEvents: 'none', opacity: 0 }}
+      aria-hidden="true"
+    />
+  );
+}
+
 // Компонент одной колонки (UI + задачи)
 function Column({ column, tasks, onAddTask, onRenameTask, onEditDesc, onDeleteTask, onDeleteColumn, loading, activeTaskId, addTaskError, handleAddTask }: {
   column: { id: string; title: string; order: number };
@@ -242,26 +255,30 @@ function Column({ column, tasks, onAddTask, onRenameTask, onEditDesc, onDeleteTa
       {/* Кнопка "Добавить таск" всегда над списком */}
       <div className="flex flex-col mb-2">
         <button
-          className={`bg-blue-500 text-white hover:bg-blue-600 px-2 py-1 rounded mb-2 transition-colors ${addTaskError && addTaskError[column.id] ? 'bg-red-600 hover:bg-red-700' : ''}`}
+          className={`bg-blue-500 text-white hover:bg-blue-600 px-2 py-1 rounded mb-2 transition-colors cursor-pointer ${addTaskError && addTaskError[column.id] ? 'bg-red-600 hover:bg-red-700' : ''}`}
           onClick={() => handleAddTask && handleAddTask(column.id)}
           disabled={loading}
         >
           {addTaskError && addTaskError[column.id] ? addTaskError[column.id] : '+ Добавить таск'}
         </button>
         <SortableContext
-          items={tasks.map(t => t.id)}
+          items={tasks.length === 0 ? [`empty-${column.id}`] : tasks.map(t => t.id)}
           strategy={verticalListSortingStrategy}
         >
-          {tasks.sort((a: TaskType, b: TaskType) => b.order - a.order).map(task => (
-            <DraggableTask
-              key={task.id}
-              task={task}
-              onRename={onRenameTask}
-              onDelete={() => setTaskToDelete(task.id)}
-              onEditDesc={onEditDesc}
-              loading={loading}
-            />
-          ))}
+          {tasks.length === 0 ? (
+            <InvisibleEmptyColumnPlaceholder columnId={column.id} />
+          ) : (
+            tasks.sort((a: TaskType, b: TaskType) => b.order - a.order).map(task => (
+              <DraggableTask
+                key={task.id}
+                task={task}
+                onRename={onRenameTask}
+                onDelete={() => setTaskToDelete(task.id)}
+                onEditDesc={onEditDesc}
+                loading={loading}
+              />
+            ))
+          )}
         </SortableContext>
       </div>
       {/* Модалка подтверждения удаления таска */}
@@ -481,6 +498,56 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
     if (!over || active.id === over.id) return;
     // Найти таск и колонку
     const activeTask = getTaskById(active.id as string);
+    // --- ДОБАВЛЕНО: обработка дропа на пустую колонку ---
+    const overId = String(over.id);
+    if (overId.startsWith('empty-')) {
+      const toColumnId = overId.replace('empty-', '');
+      if (!activeTask) return;
+      const fromColumnId = activeTask.columnId;
+      // Перемещаем таск в новую колонку с order = 1
+      const newTask = { ...activeTask, columnId: toColumnId, order: 1 };
+      // Пересортируем задачи в исходной колонке
+      const fromTasks = tasks.filter(t => t.columnId === fromColumnId && t.id !== activeTask.id)
+        .sort((a, b) => b.order - a.order)
+        .map((t, idx, arr) => ({ ...t, order: arr.length - idx }));
+      setTasks(ts => [
+        ...ts.filter(t => t.columnId !== fromColumnId && t.columnId !== toColumnId),
+        ...fromTasks,
+        newTask
+      ]);
+      // Сохраняем изменения на сервере
+      Promise.all([
+        fetch('/api/tasks', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: newTask.id, order: 1, columnId: toColumnId })
+        }),
+        ...fromTasks.map(t =>
+          fetch('/api/tasks', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: t.id, order: t.order, columnId: t.columnId })
+          })
+        )
+      ]).then(async () => {
+        // Перезагрузить задачи для обеих колонок
+        const reloadColumnIds = [fromColumnId, toColumnId];
+        let allNewTasks: TaskType[] = tasks.filter(t => !reloadColumnIds.includes(t.columnId));
+        for (const colId of reloadColumnIds) {
+          const data = await fetch(`/api/tasks?columnId=${colId}`);
+          if (data.ok) {
+            const json = await data.json();
+            allNewTasks = [
+              ...allNewTasks,
+              ...json.tasks.map((t: any) => ({ ...t, columnId: colId }))
+            ];
+          }
+        }
+        setTasks(allNewTasks);
+      });
+      return;
+    }
+    // Найти таск и колонку
     const overTask = getTaskById(over.id as string);
     if (!activeTask || !overTask) return;
     // Если таск перемещен в другую колонку или внутри колонки
@@ -589,7 +656,7 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
             disabled={loading}
           />
           <button
-            className={`px-3 py-1 rounded ${addColumnError ? 'bg-red-600 text-white' : 'bg-blue-500 text-white'}`}
+            className={`px-3 py-1 rounded cursor-pointer ${addColumnError ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
             onClick={handleAddColumn}
             disabled={loading}
           >
