@@ -19,17 +19,17 @@ export default async function Home() {
   //   return <ClientHome email={user.email} />;
   // }
   return (
-    <div className="flex flex-col items-center justify-center p-8">
-      <h1 className="text-3xl font-bold mb-8">Task Forge</h1>
-      <p className="mb-4 text-lg">
+    <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 mx-auto max-w-lg">
+      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white">Task Forge</h1>
+      <p className="mb-6 text-lg text-gray-700 dark:text-gray-300 text-center">
         {user
           ? `Добро пожаловать, ${user.email}!`
           : "Добро пожаловать! Войдите или зарегистрируйтесь, чтобы начать работать с задачами."}
       </p>
       {!user && (
         <div className="flex gap-4">
-          <a href="/login" className="bg-black text-white rounded px-4 py-2">Войти</a>
-          <a href="/register" className="bg-gray-200 text-black rounded px-4 py-2">Зарегистрироваться</a>
+          <a href="/login" className="text-gray-900 dark:text-gray-100 px-6 py-2 font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">Войти</a>
+          <a href="/register" className="text-gray-900 dark:text-gray-100 px-6 py-2 font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">Зарегистрироваться</a>
         </div>
       )}
     </div>

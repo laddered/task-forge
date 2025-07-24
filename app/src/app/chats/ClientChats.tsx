@@ -30,6 +30,8 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   // Счетчики непрочитанных сообщений
   const [unread, setUnread] = useState<{ [userId: string]: number }>({});
+  const [showDeleteChatModal, setShowDeleteChatModal] = useState(false);
+  const [loadingDeleteChat, setLoadingDeleteChat] = useState(false);
 
   // Подключение к socket.io серверу + онлайн-статусы
   useEffect(() => {
@@ -101,6 +103,17 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
       (u.name?.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
     );
   }, [search, allUsers]);
+
+  // Фильтрация пользователей по поиску и отсутствию чата
+  const filteredNewChatUsers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    // Только те, с кем еще нет чата
+    const notInChat = allUsers.filter(u => !chatUserList.some(cu => cu.id === u.id));
+    if (!q) return notInChat;
+    return notInChat.filter(u =>
+      (u.name?.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+    );
+  }, [search, allUsers, chatUserList]);
 
   // Переключение выбора пользователя
   function toggleUser(id: string) {
@@ -194,10 +207,10 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
     <main className="p-8 flex h-[80vh]">
       {/* Sidebar */}
       {showSidebar && (
-        <aside className="w-64 bg-gray-800 p-4 rounded shadow flex flex-col self-start">
+        <aside className="w-64 bg-gray-300 dark:bg-gray-900 p-4 rounded shadow flex flex-col self-start">
           <div className="flex items-center mb-4">
             <button
-              className="w-full px-4 py-2 bg-gray-700 text-gray-100 rounded hover:bg-gray-600 cursor-pointer"
+              className="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer"
               onClick={() => setShowSidebar(false)}
             >
               Скрыть чаты
@@ -205,7 +218,7 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
           </div>
           <div className="w-full mb-4">
             <button
-              className="w-full px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-600 cursor-pointer"
+              className="w-full px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white dark:text-white rounded hover:bg-blue-500 dark:hover:bg-blue-600 cursor-pointer"
               onClick={() => setShowNewChatModal(true)}
             >
               Новый чат
@@ -216,7 +229,7 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
               <li key={user.id} className="flex items-center gap-2">
                 <span className={`inline-block w-2 h-2 rounded-full ${onlineUsers.has(user.id) ? 'bg-green-500' : 'bg-gray-400'}`}></span>
                 <button
-                  className={`flex-1 text-left px-2 py-1 rounded hover:bg-gray-700 transition-colors ${selectedUserId === user.id ? 'bg-gray-700 text-white' : 'text-gray-200'}`}
+                  className={`flex-1 text-left px-2 py-1 rounded transition-colors cursor-pointer ${selectedUserId === user.id ? 'bg-blue-400 dark:bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
                   onClick={() => setSelectedUserId(user.id)}
                 >
                   {user.name || user.email}
@@ -246,7 +259,7 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
       )}
       {/* Chat window */}
       <section className="flex-1 flex flex-col pl-8 pr-8">
-      <h1 className="text-xl font-bold mb-4">
+      <h1 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
         Ваши чаты
         {selectedUserId && (
           <> &gt; Чат с {chatUserList.find(u => u.id === selectedUserId)?.name || chatUserList.find(u => u.id === selectedUserId)?.email}</>
@@ -257,27 +270,15 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
             {/* Кнопка удаления чата */}
             <div className="flex justify-end mb-2">
               <button
-                className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                onClick={async () => {
-                  if (!selectedUserId) return;
-                  if (!window.confirm('Удалить все сообщения с этим пользователем?')) return;
-                  await fetch(`/api/messages?userId=${selectedUserId}`, { method: 'DELETE' });
-                  setSelectedUserId(null);
-                  // Обновить список чатов
-                  const res = await fetch('/api/chats/users');
-                  if (res.ok) {
-                    const data = await res.json();
-                    setChatUserList(data.chatUsers);
-                  }
-                  setMessages([]);
-                }}
+                className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm cursor-pointer"
+                onClick={() => setShowDeleteChatModal(true)}
               >Удалить чат</button>
             </div>
             {/* Сообщения */}
-            <div className="flex-1 overflow-y-auto mb-4 bg-gray-700 rounded p-2">
+            <div className="flex-1 overflow-y-auto mb-4 bg-gray-200 dark:bg-gray-700 rounded p-2">
               {messages.filter(m => (m.senderId === userId && m.receiverId === selectedUserId) || (m.senderId === selectedUserId && m.receiverId === userId)).map((msg, idx) => (
                 <div key={idx} className={`mb-2 flex flex-col ${msg.senderId === userId ? 'items-end' : 'items-start'}`}>
-                  <span className={`inline-block px-3 py-1 rounded ${msg.senderId === userId ? 'bg-blue-500 text-white' : 'bg-gray-600 text-gray-100'}`}>{msg.text}</span>
+                  <span className={`inline-block px-3 py-1 rounded ${msg.senderId === userId ? 'bg-blue-500 text-white dark:text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-gray-100'}`}>{msg.text}</span>
                   <span className="text-xs text-gray-400 mt-0.5">
                     {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                   </span>
@@ -292,7 +293,7 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
             {/* Форма отправки */}
             <div className="flex gap-2">
               <input
-                className="flex-1 border rounded px-2 py-1"
+                className="flex-1 border rounded px-2 py-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 placeholder-gray-400"
                 placeholder="Сообщение..."
                 value={input}
                 onChange={handleInputChange}
@@ -311,24 +312,24 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
       </section>
       {/* Модалка создания нового чата */}
       <Dialog open={showNewChatModal} onClose={() => setShowNewChatModal(false)} className="fixed z-50 inset-0 flex items-center justify-center">
-        <Dialog.Panel className="bg-gray-900 p-6 rounded shadow-xl max-w-md w-full">
-          <Dialog.Title className="text-lg font-bold mb-2 text-gray-100">Новый чат</Dialog.Title>
-          <Dialog.Description className="mb-4 text-gray-300">Выберите пользователей для нового чата</Dialog.Description>
+        <Dialog.Panel className="bg-white dark:bg-gray-900 p-6 rounded shadow-xl max-w-md w-full border border-gray-200 dark:border-gray-700">
+          <Dialog.Title className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-100">Новый чат</Dialog.Title>
+          <Dialog.Description className="mb-4 text-gray-700 dark:text-gray-300">Выберите пользователей для нового чата</Dialog.Description>
           <input
-            className="w-full mb-3 px-3 py-2 rounded border border-gray-600 focus:outline-none focus:ring bg-gray-800 text-gray-100 placeholder-gray-400"
+            className="w-full mb-3 px-3 py-2 rounded border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400"
             placeholder="Поиск по имени или email"
             value={search}
             onChange={e => setSearch(e.target.value)}
             autoFocus
           />
-          <div className="max-h-60 overflow-y-auto mb-4 bg-gray-800 rounded p-2">
-            {filteredUsers.length === 0 ? (
+          <div className="max-h-60 overflow-y-auto mb-4 bg-gray-200 dark:bg-gray-800 rounded p-2 custom-scrollbar">
+            {filteredNewChatUsers.length === 0 ? (
               <div className="text-gray-400 text-sm">Нет пользователей</div>
             ) : (
               <ul className="space-y-1">
-                {filteredUsers.map(user => (
+                {filteredNewChatUsers.map(user => (
                   <li key={user.id}>
-                    <label className="flex items-center gap-2 cursor-pointer text-gray-100">
+                    <label className="flex items-center gap-2 cursor-pointer text-gray-900 dark:text-gray-100">
                       <input
                         type="checkbox"
                         checked={selectedUserIds.includes(user.id)}
@@ -344,13 +345,48 @@ export default function ClientChats({ chatUsers, userId, allUsers }: ClientChats
             )}
           </div>
           <div className="flex gap-2 justify-end">
-            <button className="px-4 py-2 bg-gray-500 hover:bg-gray-400 text-gray-100 rounded" onClick={() => setShowNewChatModal(false)}>Отмена</button>
+            <button className="px-4 py-2 bg-gray-400 dark:bg-gray-500 hover:bg-gray-300 dark:hover:bg-gray-400 text-gray-900 dark:text-gray-100 rounded" onClick={() => setShowNewChatModal(false)}>Отмена</button>
             <button
-              className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+              className="px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white dark:text-white rounded disabled:opacity-50"
               disabled={selectedUserIds.length === 0}
               onClick={handleStartChat}
             >
               Начать чат
+            </button>
+          </div>
+        </Dialog.Panel>
+      </Dialog>
+      {/* Модалка подтверждения удаления чата */}
+      <Dialog open={showDeleteChatModal} onClose={() => setShowDeleteChatModal(false)} className="fixed z-50 inset-0 flex items-center justify-center">
+        <Dialog.Panel className="bg-white dark:bg-gray-900 p-6 rounded shadow-xl max-w-sm w-full border border-gray-200 dark:border-gray-700">
+          <Dialog.Title className="text-lg font-bold mb-2 text-gray-900 dark:text-white">
+            Удалить чат
+          </Dialog.Title>
+          <Dialog.Description className="mb-4 text-gray-700 dark:text-gray-300">
+            Вы уверены, что хотите удалить все сообщения с этим пользователем? Это действие необратимо.
+          </Dialog.Description>
+          <div className="flex gap-2 justify-end">
+            <button className="px-4 py-2 bg-gray-500 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-white rounded" onClick={() => setShowDeleteChatModal(false)} disabled={loadingDeleteChat}>Отмена</button>
+            <button
+              className="px-4 py-2 bg-red-600 text-white rounded disabled:opacity-50 dark:bg-red-700"
+              onClick={async () => {
+                if (!selectedUserId) return;
+                setLoadingDeleteChat(true);
+                await fetch(`/api/messages?userId=${selectedUserId}`, { method: 'DELETE' });
+                setSelectedUserId(null);
+                // Обновить список чатов
+                const res = await fetch('/api/chats/users');
+                if (res.ok) {
+                  const data = await res.json();
+                  setChatUserList(data.chatUsers);
+                }
+                setMessages([]);
+                setShowDeleteChatModal(false);
+                setLoadingDeleteChat(false);
+              }}
+              disabled={loadingDeleteChat}
+            >
+              {loadingDeleteChat ? "Удаление..." : "Удалить"}
             </button>
           </div>
         </Dialog.Panel>

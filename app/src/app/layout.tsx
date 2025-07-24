@@ -5,6 +5,7 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { cookies } from "next/headers";
 import { PrismaClient } from "@prisma/client";
+import { ThemeProvider } from 'next-themes';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,9 +40,13 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
-        <Header email={user?.email} name={user?.name} />
-        <main className="flex-1 flex flex-col">{children}</main>
-        <Footer />
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <div className="bg-white dark:bg-black min-h-screen flex flex-col">
+            <Header email={user?.email} name={user?.name} />
+            <main className="flex-1 flex flex-col">{children}</main>
+            <Footer />
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   );

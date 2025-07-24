@@ -64,13 +64,13 @@ function SortableTask({ task, onRename, onDelete, onEditDesc, loading, listeners
       style={style}
       {...attributes}
       {...listeners}
-      className={`bg-white rounded shadow p-2 mb-2 flex flex-col h-28 min-h-28 max-h-28 transition-all duration-150 ${isDragging ? 'opacity-50 border-2 border-blue-500 cursor-grabbing' : 'cursor-grab'} `}
+      className={`bg-white dark:bg-gray-900 rounded shadow p-2 mb-2 flex flex-col h-28 min-h-28 max-h-28 transition-all duration-150 ${isDragging ? 'opacity-50 border-2 border-blue-500 cursor-grabbing' : 'cursor-grab'} `}
     >
       <div className="flex items-center mb-1">
         {/* Удалена кнопка карандаша, теперь редактирование по двойному клику */}
         {isEditing ? (
           <input
-            className="w-24 mr-2 text-sm font-semibold text-gray-800 truncate select-text hover:cursor-text bg-transparent outline-none border-none focus:ring-0"
+            className="w-24 mr-2 text-sm font-semibold text-gray-800 dark:text-white truncate select-text hover:cursor-text bg-transparent outline-none border-none focus:ring-0"
             value={title}
             onChange={e => setTitle(e.target.value)}
             onBlur={handleRename}
@@ -80,7 +80,7 @@ function SortableTask({ task, onRename, onDelete, onEditDesc, loading, listeners
           />
         ) : (
           <span
-            className="font-semibold text-gray-800 flex-1 truncate select-text hover:cursor-text"
+            className="font-semibold text-gray-800 dark:text-white flex-1 truncate select-text hover:cursor-text"
             onDoubleClick={() => setIsEditing(true)}
             title="Двойной клик для редактирования"
             style={{ cursor: 'text' }}
@@ -90,11 +90,11 @@ function SortableTask({ task, onRename, onDelete, onEditDesc, loading, listeners
         )}
         <button className="ml-auto text-red-500" onClick={() => onDelete(task.id)} title="Удалить" disabled={loading}>❌</button>
       </div>
-      <div className="text-sm text-gray-600 mt-2 break-words flex items-start gap-1">
+      <div className="text-sm text-gray-600 dark:text-gray-300 mt-2 break-words flex items-start gap-1">
         {isEditingDesc ? (
           <div className="flex flex-col w-full">
             <textarea
-              className="w-full text-sm text-gray-600 resize-none bg-transparent outline-none border-none focus:ring-0 select-text hover:cursor-text"
+              className="w-full text-sm text-gray-600 dark:text-gray-300 resize-none bg-transparent outline-none border-none focus:ring-0 select-text hover:cursor-text"
               value={desc}
               onChange={e => setDesc(e.target.value.slice(0, 100))}
               onBlur={handleEditDescSave}
@@ -223,12 +223,12 @@ function Column({ column, tasks, onAddTask, onRenameTask, onEditDesc, onDeleteTa
   }
 
   return (
-    <div className="bg-gray-300 rounded shadow p-4 w-64 mr-4 flex-shrink-0 opacity-100">
+    <div className="bg-gray-300 dark:bg-gray-800 rounded shadow p-4 w-64 mr-4 flex-shrink-0 opacity-100">
       <div className="flex items-center mb-2">
         {/* Кнопка-карандаш удалена, теперь редактирование по двойному клику */}
         {isEditing ? (
           <input
-            className="w-24 mr-2 text-sm font-semibold text-gray-800 truncate select-text hover:cursor-text bg-transparent outline-none border-none focus:ring-0"
+            className="w-24 mr-2 text-sm font-semibold text-gray-800 dark:text-white truncate select-text hover:cursor-text bg-transparent outline-none border-none focus:ring-0"
             value={title}
             onChange={e => setTitle(e.target.value)}
             onBlur={handleRename}
@@ -238,7 +238,7 @@ function Column({ column, tasks, onAddTask, onRenameTask, onEditDesc, onDeleteTa
           />
         ) : (
           <span
-            className="font-semibold text-gray-800 flex-1 select-text hover:cursor-text"
+            className="font-semibold text-gray-800 dark:text-white flex-1 select-text hover:cursor-text"
             onDoubleClick={() => setIsEditing(true)}
             title="Двойной клик для редактирования названия колонки"
             style={{ cursor: 'text' }}
@@ -255,7 +255,7 @@ function Column({ column, tasks, onAddTask, onRenameTask, onEditDesc, onDeleteTa
       {/* Кнопка "Добавить таск" всегда над списком */}
       <div className="flex flex-col mb-2">
         <button
-          className={`bg-blue-500 text-white hover:bg-blue-600 px-2 py-1 rounded mb-2 transition-colors cursor-pointer ${addTaskError && addTaskError[column.id] ? 'bg-red-600 hover:bg-red-700' : ''}`}
+          className={`bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-700 dark:hover:bg-blue-800 px-2 py-1 rounded mb-2 transition-colors cursor-pointer ${addTaskError && addTaskError[column.id] ? 'bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800' : ''}`}
           onClick={() => handleAddTask && handleAddTask(column.id)}
           disabled={loading}
         >
@@ -283,17 +283,17 @@ function Column({ column, tasks, onAddTask, onRenameTask, onEditDesc, onDeleteTa
       </div>
       {/* Модалка подтверждения удаления таска */}
       <Dialog open={!!taskToDelete} onClose={() => setTaskToDelete(null)} className="fixed z-50 inset-0 flex items-center justify-center">
-        <Dialog.Panel className="bg-gray-800 p-6 rounded shadow-xl max-w-sm w-full">
-          <Dialog.Title className="text-lg font-bold mb-2">
+        <Dialog.Panel className="bg-gray-800 dark:bg-gray-900 p-6 rounded shadow-xl max-w-sm w-full">
+          <Dialog.Title className="text-lg font-bold mb-2 dark:text-white">
             Удалить задачу{taskToDelete ? `: "${(tasks.find(t => t.id === taskToDelete)?.title || '')}"` : ''}?
           </Dialog.Title>
-          <Dialog.Description className="mb-4 text-gray-200">
+          <Dialog.Description className="mb-4 text-gray-200 dark:text-gray-300">
             {taskToDelete ? `Вы уверены, что хотите удалить задачу "${(tasks.find(t => t.id === taskToDelete)?.title || '')}"? Это действие необратимо.` : 'Это действие необратимо.'}
           </Dialog.Description>
           <div className="flex gap-2 justify-end">
-            <button className="px-4 py-2 bg-gray-500 hover:bg-gray-400 text-white rounded" onClick={() => setTaskToDelete(null)} disabled={loading}>Отмена</button>
+            <button className="px-4 py-2 bg-gray-500 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-white rounded" onClick={() => setTaskToDelete(null)} disabled={loading}>Отмена</button>
             <button
-              className="px-4 py-2 bg-red-600 text-white rounded disabled:opacity-50"
+              className="px-4 py-2 bg-red-600 text-white rounded disabled:opacity-50 dark:bg-red-700"
               onClick={async () => {
                 if (taskToDelete) {
                   await onDeleteTask(taskToDelete);
@@ -640,12 +640,15 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveTaskId(null)}
     >
-      <section className="flex-1 overflow-x-auto pl-8 pr-8">
-        <h1 className="text-xl font-bold mb-4">Ваши доски &gt; {board.name}</h1>
+      <section
+        className="flex-1 overflow-x-auto pl-8 pr-8 min-h-[calc(80vh-64px)]"
+        style={{ scrollbarColor: '#a3a3a3 #f3f4f6', scrollbarWidth: 'thin' }}
+      >
+        <h1 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Ваши доски &gt; {board.name}</h1>
         {/* Форма создания новой колонки */}
         <div className="flex items-end mb-4">
           <input
-            className="border rounded px-2 py-1 mr-2"
+            className="border rounded px-2 py-1 mr-2 dark:bg-gray-900 dark:text-white dark:border-gray-700 placeholder-gray-700 dark:placeholder-gray-500"
             placeholder="Новая колонка"
             value={newColTitle}
             onChange={(e) => {
@@ -656,7 +659,7 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
             disabled={loading}
           />
           <button
-            className={`px-3 py-1 rounded cursor-pointer ${addColumnError ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+            className={`px-3 py-1 rounded cursor-pointer ${addColumnError ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800' : 'bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-700 dark:hover:bg-blue-800'}`}
             onClick={handleAddColumn}
             disabled={loading}
           >
@@ -697,16 +700,16 @@ function BoardView({ board }: { board: { id: string; name: string } }) {
         </DragOverlay>
         {/* Модалка подтверждения удаления колонки */}
         <Dialog open={!!columnToDelete} onClose={() => setColumnToDelete(null)} className="fixed z-50 inset-0 flex items-center justify-center">
-          <Dialog.Panel className="bg-gray-800 p-6 rounded shadow-xl max-w-sm w-full">
-            <Dialog.Title className="text-lg font-bold mb-2">
+          <Dialog.Panel className="bg-white dark:bg-gray-900 p-6 rounded shadow-xl max-w-sm w-full border border-gray-200 dark:border-gray-700">
+            <Dialog.Title className="text-lg font-bold mb-2 text-gray-900 dark:text-white">
               Удалить колонку{columnToDelete ? `: "${(columns.find(c => c.id === columnToDelete)?.title || '')}"` : ''}?
             </Dialog.Title>
-            <Dialog.Description className="mb-4 text-gray-200">
+            <Dialog.Description className="mb-4 text-gray-700 dark:text-gray-300">
               {columnToDelete ? `Вы уверены, что хотите удалить колонку "${(columns.find(c => c.id === columnToDelete)?.title || '')}"? Это действие необратимо.` : 'Это действие необратимо.'}
             </Dialog.Description>
             <div className="flex gap-2 justify-end">
-              <button className="px-4 py-2 bg-gray-500 hover:bg-gray-400 text-white rounded" onClick={() => setColumnToDelete(null)} disabled={loading}>Отмена</button>
-              <button className="px-4 py-2 bg-red-600 text-white rounded disabled:opacity-50" onClick={() => columnToDelete && handleDeleteColumn(columnToDelete)} disabled={loading}>{loading ? "Удаление..." : "Удалить"}</button>
+              <button className="px-4 py-2 bg-gray-400 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded" onClick={() => setColumnToDelete(null)} disabled={loading}>Отмена</button>
+              <button className="px-4 py-2 bg-red-600 text-white rounded disabled:opacity-50 dark:bg-red-700" onClick={() => columnToDelete && handleDeleteColumn(columnToDelete)} disabled={loading}>{loading ? "Удаление..." : "Удалить"}</button>
             </div>
           </Dialog.Panel>
         </Dialog>

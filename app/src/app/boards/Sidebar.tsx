@@ -70,12 +70,12 @@ export default function Sidebar({ boards, userId, onBoardCreated, onBoardDeleted
     <>
       {/* Боковая панель со списком досок */}
       {showSidebar && (
-        <aside className="w-64 bg-gray-800 p-4 rounded shadow flex flex-col self-start">
+        <aside className="w-64 bg-gray-300 dark:bg-gray-900 p-4 rounded shadow flex flex-col self-start">
           <div className="flex items-center mb-4">
             <div className="w-full min-w-[120px]">
               {/* Кнопка скрытия боковой панели */}
               <button
-                className="w-full px-4 py-2 bg-gray-700 text-gray-100 rounded hover:bg-gray-600 cursor-pointer"
+                className="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer"
                 onClick={() => setShowSidebar((v) => !v)}
               >
                 Скрыть доски
@@ -85,7 +85,7 @@ export default function Sidebar({ boards, userId, onBoardCreated, onBoardDeleted
           <div className="w-full min-w-[120px] mb-4">
             {/* Кнопка создания новой доски */}
             <button
-              className="w-full px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-600 disabled:opacity-50 cursor-pointer"
+              className="w-full px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded hover:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50 cursor-pointer"
               onClick={handleCreateBoard}
               disabled={creating || boards.length >= MAX_BOARDS}
             >
@@ -97,13 +97,13 @@ export default function Sidebar({ boards, userId, onBoardCreated, onBoardDeleted
             {boards.map((board) => (
               <li
                 key={board.id}
-                className={`flex items-center justify-between group cursor-pointer rounded hover:bg-gray-700 transition-colors duration-150 ${selectedBoardId === board.id ? 'bg-gray-700' : ''}`}
+                className={`flex items-center justify-between group cursor-pointer rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-150 ${selectedBoardId === board.id ? 'bg-gray-300 dark:bg-gray-700' : ''}`}
                 onClick={() => onSelectBoard(board.id)}
               >
                 {/* Кнопка-карандаш удалена. Теперь редактирование по двойному клику на название */}
                 {editingBoardId === board.id ? (
                   <input
-                    className="ml-2 truncate text-gray-100 select-text hover:cursor-text w-32 bg-transparent outline-none border-none focus:ring-0"
+                    className="ml-2 truncate text-gray-900 dark:text-gray-100 select-text hover:cursor-text w-32 bg-transparent outline-none border-none focus:ring-0"
                     value={editingBoardName}
                     maxLength={20}
                     autoFocus
@@ -122,7 +122,7 @@ export default function Sidebar({ boards, userId, onBoardCreated, onBoardDeleted
                 ) : (
                   // Название доски (двойной клик для редактирования)
                   <span
-                    className="ml-2 truncate text-gray-100 select-text hover:cursor-text"
+                    className="ml-2 truncate text-gray-900 dark:text-gray-100 select-text hover:cursor-text"
                     onDoubleClick={e => { e.stopPropagation(); setEditingBoardId(board.id); setEditingBoardName(board.name); }}
                     title="Двойной клик для редактирования названия"
                     style={{ cursor: 'text' }}
