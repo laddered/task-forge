@@ -9,4 +9,7 @@ COPY . .
 
 EXPOSE 3000
 
+# Для отладки/ручного входа используйте:
+# CMD ["sh", "-c", "tail -f /dev/null"]
+
 CMD ["npm", "run", "dev"]
